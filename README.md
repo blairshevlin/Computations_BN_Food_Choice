@@ -11,7 +11,7 @@ This repository houses the work of Dr. Blair R. K. Shevlin (Mount Sinai) and col
 
 This repository is organized as follows:
 
-- `data/` : Contains raw data and intermediate datasets used for analysis. (AVAILABLE UPON REQUEST)
+- `data/` : Contains raw data datasets used for analysis. (AVAILABLE UPON REQUEST)
 - `src/` : Contains all source code for this project, including data preprocessing, model fitting, and analysis.
 - `results/` : Contains output from data analysis, including figures
 - `docs/` : Contains all documents related to the project, including the manuscript and supplementary materials.
