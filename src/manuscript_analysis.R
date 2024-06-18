@@ -331,7 +331,8 @@ taste.lm.b2 <- lmer(data=taste.df[taste.df$Dx == "Healthy Controls",],
                  formula = vals ~ cond * foodType + (1|idx),
                  REML=F,
                  control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-#summary(taste.lm.b1); summary(taste.lm.b2) 
+summary(taste.lm.b1); 
+summary(taste.lm.b2) 
 # Supplementary Table 5
 
 ## Health
@@ -359,7 +360,8 @@ health.lm.b2 <- lmer(data=health.df[health.df$Dx == "Healthy Controls",],
                  formula = vals ~ cond * foodType + (1|idx),
                  REML=F,
                  control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-#summary(health.lm.b1); summary(health.lm.b2) 
+summary(health.lm.b1); 
+summary(health.lm.b2) 
 # Supplementary Table 6
 
 # Figure 4
@@ -626,8 +628,6 @@ summary(glm.nb (data = LOC.change,
 summary(glm.nb (data = LOC.change,
                 formula = OBE_SUM ~ change * cond ) )
                 
-summary(m.SBE);
-summary(m.OBE)
 # Supplementary Table 7
 
 
