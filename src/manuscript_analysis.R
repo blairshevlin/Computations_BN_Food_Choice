@@ -19,7 +19,8 @@
 #
 # Date            Programmers                         Descriptions of Change
 # ====         ================                       ======================
-# 06/17/24      Blair Shevlin                            Wrote code for original manuscript
+# 06/17/24      Blair Shevlin                         Behavioral code for original manuscript
+# 06/17/24      Blair Shevlin                         Modeling code for original manuscript
 
 # Packages required
 required_packages <- c(
@@ -264,7 +265,46 @@ params <- df.fit.full %>%
                          "tHin_hf" = "tHin")
   )
 
-# Hypothesis 1: Attribute Weights
+# Attribute timing
+tHin.df <- params %>%
+  filter(params == "tHin") %>%
+  mutate( foodType = factor(foodType,
+                            levels=c("Low-Fat","High-Fat"),
+                            labels = c("Low-Fat","High-Fat")),
+          cond = factor(cond,levels=c("Neutral","Negative")),
+          Dx = factor(Dx,levels=c("hc","bn"),labels=c("Healthy Controls",
+                                                      "Bulimia Nervosa")))
+tHin.lm <- lmer (data=tHin.df,
+                 formula = vals ~ Dx * cond * foodType+ (1|idx),
+                 REML=F,
+                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+summary(tHin.lm) 
+# Supplementary Table 1
+
+#  Within group: cond x Food
+tHin.lm.b1 <- lmer(data=tHin.df[tHin.df$Dx == "Bulimia Nervosa",],
+                 formula = vals ~ cond / foodType + (1|idx),
+                 REML=F,
+                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+tHin.lm.b2 <- lmer(data=tHin.df[tHin.df$Dx == "Healthy Controls",],
+                 formula = vals ~ cond / foodType + (1|idx),
+                 REML=F,
+                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+summary(tHin.lm.b2) 
+summary(tHin.lm.b1);
+# Supplementary Table 2
+
+# Equivalence of cond term
+
+# Clogg et al. (1995) formula as cited by Ray Paternoster et al. (1998)
+b1 = summary(tHin.lm.b1)$coeff[2,1] # mean est of BN
+s1 = summary(tHin.lm.b1)$coeff[2,2] # se of BN
+b2 = summary(tHin.lm.b2)$coeff[2,1] # mean est of HC
+s2 = summary(tHin.lm.b2)$coeff[2,2] # see of HC
+v = (b1 - b2) / sqrt(s1^2 + s2^2)
+data.frame(diff=b, zdiff=v, `p-value`=format(2*pnorm(-abs(v)), scientific=FALSE))
+
+# Attribute Weights
 
 ## Taste
 taste.df <- params %>%
@@ -279,20 +319,20 @@ taste.lm1 <- lmer (data=taste.df,
                formula = vals ~ Dx * cond * foodType+ (1|idx),
                REML=F,
                control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-#summary(taste.lm1)
-# Supplementary Table 1
+summary(taste.lm1)
+# Supplementary Table 3
 
 # Within group: cond x Food
-hyp1.lm.b1 <- lmer(data=taste.df[taste.df$Dx == "Bulimia Nervosa",],
+taste.lm.b1 <- lmer(data=taste.df[taste.df$Dx == "Bulimia Nervosa",],
                  formula = vals ~ cond * foodType + (1|idx),
                  REML=F,
                  control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-hyp1.lm.b2 <- lmer(data=taste.df[taste.df$Dx == "Healthy Controls",],
+taste.lm.b2 <- lmer(data=taste.df[taste.df$Dx == "Healthy Controls",],
                  formula = vals ~ cond * foodType + (1|idx),
                  REML=F,
                  control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-#summary(hyp1.lm.b2); summary(hyp1.lm.b1) 
-# Supplementary Table 2
+#summary(taste.lm.b1); summary(taste.lm.b2) 
+# Supplementary Table 5
 
 ## Health
 health.df <- params %>%
@@ -307,47 +347,19 @@ health.lm1 <- lmer (data=health.df,
                     formula = vals ~ Dx * cond * foodType + (1|idx),
                     REML=F,
                     control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-#summary(health.lm1)
-# Supplementary Table 3
-
-# Within group: cond x Food
-hyp1.lm.b1 <- lmer(data=health.df[health.df$Dx == "Bulimia Nervosa",],
-                 formula = vals ~ cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-hyp1.lm.b2 <- lmer(data=health.df[health.df$Dx == "Healthy Controls",],
-                 formula = vals ~ cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-#summary(hyp1.lm.b2); summary(hyp1.lm.b1) 
+summary(health.lm1)
 # Supplementary Table 4
 
-# Hypothesis 2: Attribute timing
-tHin.df <- params %>%
-  filter(params == "tHin") %>%
-  mutate( foodType = factor(foodType,
-                            levels=c("Low-Fat","High-Fat"),
-                            labels = c("Low-Fat","High-Fat")),
-          cond = factor(cond,levels=c("Neutral","Negative")),
-          Dx = factor(Dx,levels=c("hc","bn"),labels=c("Healthy Controls",
-                                                      "Bulimia Nervosa")))
-hyp2.lm <- lmer (data=tHin.df,
-                 formula = vals ~ Dx * cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-#summary(hyp2.lm) 
-# Supplementary Table 5
-
-#  Within group: cond x Food
-hyp2.lm.b1 <- lmer(data=tHin.df[tHin.df$Dx == "Bulimia Nervosa",],
+# Within group: cond x Food
+health.lm.b1 <- lmer(data=health.df[health.df$Dx == "Bulimia Nervosa",],
                  formula = vals ~ cond * foodType + (1|idx),
                  REML=F,
                  control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-hyp2.lm.b2 <- lmer(data=tHin.df[tHin.df$Dx == "Healthy Controls",],
+health.lm.b2 <- lmer(data=health.df[health.df$Dx == "Healthy Controls",],
                  formula = vals ~ cond * foodType + (1|idx),
                  REML=F,
                  control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-#summary(hyp2.lm.b2) ;summary(hyp2.lm.b1) 
+#summary(health.lm.b1); summary(health.lm.b2) 
 # Supplementary Table 6
 
 # Figure 4
@@ -603,14 +615,20 @@ figure5 = fig5 +
 ggsave(file = figPath / "figure5.png", plot = figure5, width = 12, height = 8)
 
 
-m.SBE = glmmTMB(SUM ~  vals * cond * foodType, 
-        data = LOC.df[LOC.df$param == "tau[s]" & LOC.df$LOC == "SBE_SUM",],
-        family = "nbinom2",
-        ziformula= ~ 1)
+# Change scores
+LOC.change = LOC %>%
+filter(params == "tau[s]") %>%
+  group_by(SBE_SUM,OBE_SUM,idx,cond,params) %>%
+  summarise(change = vals[foodType=="High-Fat"] - vals[foodType == "Low-Fat"])
 
-m.OBE = glmmTMB(SUM ~  vals * cond * foodType, 
-                  data = LOC.df[LOC.df$param == "tau[s]" & LOC.df$LOC == "OBE_SUM",],
-                  family = "nbinom2",
-                  ziformula= ~ 1)
-# summary(m.SBE);summary(m.OBE)
+summary(glm.nb (data = LOC.change,
+                formula = SBE_SUM ~ change * cond ) )
+summary(glm.nb (data = LOC.change,
+                formula = OBE_SUM ~ change * cond ) )
+                
+summary(m.SBE);
+summary(m.OBE)
 # Supplementary Table 7
+
+
+
