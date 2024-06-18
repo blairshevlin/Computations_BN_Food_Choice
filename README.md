@@ -16,10 +16,6 @@ This repository is organized as follows:
 - `results/` : Contains output from data analysis, including figures
 - `docs/` : Contains all documents related to the project, including the manuscript and supplementary materials.
 
-## Usage
-
-Detailed usage instructions for the code can be found in the `src/` directory. 
-
 ## Citation
 
 If you use the code or data in this repository, please cite our work:
