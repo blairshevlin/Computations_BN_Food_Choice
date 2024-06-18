@@ -19,7 +19,7 @@
 #
 # Date            Programmers                         Descriptions of Change
 # ====         ================                       ======================
-# 06/17/24      Blair Shevlin                            Wrote code for original manuscript
+# 06/18/24      Blair Shevlin                         Wrote code for original manuscript
 
 
 # This version fits foodType WITHIN a condition
@@ -59,9 +59,9 @@ base_path = here()
 
 dataFolder = path(base_path) / "data"
 scriptFolder = path(base_path) / "src" / "stDDM"
-resFolder = path(base_path) / "results" / "stDDM"
+resFolder = path(base_path) / "results" / "stDDM" / "estimation"
 
-Data<-read.csv(file=paste0(dataFolder, "/deidentified_ChoiceData.csv.csv"))
+Data<-read.csv(file=paste0(dataFolder, "/deidentified_ChoiceData.csv"))
 
 # M2 (Old M17): food-type -> Time
 
@@ -73,7 +73,7 @@ Data<-read.csv(file=paste0(dataFolder, "/deidentified_ChoiceData.csv.csv"))
 
 # Fit initial
 for (m in c("M0","M1","M2","M3") ) {
-  for (gg in c("bn","hc")){
+  for (gg in c("BN","HC")){
     for (cc in c("Neutral","Negative")) {
       Data_partial <- 
         Data %>%
@@ -160,521 +160,37 @@ dic.df = NULL
 models_of_interest= c("M0","M1","M2","M3")
 
 nM = length(models_of_interest)
-for (gg in c("hc","bn")) {
+for (gg in c("HC","BN")) {
   for (cc in c("Negative","Neutral")) {
     for (m in models_of_interest) {
-      load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,".RData",sep="")) )
+      load(file.path(resFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings.RData",sep="")) )
       code.samples<- as.mcmc.list(results)
       mcmc.mat <- as.matrix(code.samples, chains = F)
       rm(code.samples)
-      dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
       N = nrow(Data_partial)
       chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
       rm(results,mcmc.mat)
       loglik <- chain[,paste0("log_lik[",1:N,"]")]
       rm(chain)
-      r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                              cores = 3)
       w = waic(loglik)
-      l = loo(loglik,r_eff = r_eff)
       tmp.df = data.frame(Dx = gg,
                           cond = cc,
                           model = m,
-                          dic = dic,
-                           waic = w$estimates[3],
-                         loo = l$estimates[3]
+                           waic = w$estimates[3]
       )
       dic.df = rbind(dic.df,tmp.df)
     }
   }
 }
 
-
+# Report WAIC scores
 dic.df %>%
   pivot_longer(cols = c(dic,waic,loo)) %>%
-  group_by(Dx,cond,name) %>%
-  summarise(model = model[value == min(value)])
-
-
-dic.df %>%
-  pivot_longer(cols = c(dic,waic,loo)) %>%
-  group_by(Dx,name,model) %>%
-  dplyr::summarise(val = sum(value) ) %>%
-  group_by(Dx,name) %>%
-  dplyr::summarise(model = model[val == min(val)])
-
-dic.df %>%
-  pivot_longer(cols = c(dic,waic,loo)) %>%
-  filter(name != "dic") %>%
+  filter(name == "waic") %>%
   group_by(name,Dx,model) %>%
   summarise(val = round(sum(value)))%>%
-  mutate(model= factor(model,
-                      levels = model_order),
-         Dx = factor(Dx, levels = c("hc","bn"))
+  mutate(
+         Dx = factor(Dx, levels = c("HC","BN"))
         ) %>%
   arrange(model,Dx) %>%
   as.data.frame()
-
-dic.df %>%
-  pivot_longer(cols = c(dic,waic,loo)) %>%
-  filter(name != "dic") %>%
-  group_by(name,Dx,model) %>%
-  summarise(val = round(sum(value)))%>%
-  mutate(Dx = factor(Dx, levels = c("hc","bn"))
-  ) %>%
-  filter(model == model[val == min(val)])
-
-
-dic.df %>%
-  filter(model %in% models_of_interest) %>%
-  pivot_longer(cols = c(dic,waic,loo)) %>%
-  group_by(name,model,Dx) %>%
-  summarise(val = value[cond == "Negative"] + value[cond =="Neutral"])%>%
-  group_by(name,Dx) %>%
-  summarise(win = model[val == min(val)],
-            v = val[val == min(val)])
-  
-
-dic.df %>%
-  #filter(model %in% models_of_interest) %>%
-  mutate(model = factor(model,
-                        levels = c("M0","M1","M2","M3"))) %>%
-  pivot_longer(cols = c(dic,waic,loo)) %>%
-  group_by(model,Dx,name) %>%
-  summarise(val = value[cond == "Negative"] + value[cond =="Neutral"]) %>%
-  as.data.frame()
-
-
-
-bn_neg = dic.df %>% filter()
-#
-bn_neg_waic = loo_compare(x = list(waic_m0,waic_m1,
-                                   waic_m2,waic_m3))
-# M20 wins
-bn_neg_loo = loo_compare(x = list(loo_m16,loo_m17,loo_m18,
-                                  loo_m19,loo_m20,loo_m21,loo_m22))
-
-
-# Do loo compare
-
-gg = "bn";
-cc = "Negative";
-
-m = "M16";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m16 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m16 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M17";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m17 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m17 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M18";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m18 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m18 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M19";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m19 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m19 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M20";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m20 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m20 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M21";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m21 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m21 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M22";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m22 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m22 = loo(loglik,r_eff = r_eff,cores = 3)
-
-bn_neg_waic = loo_compare(x = list(waic_m16,waic_m17,waic_m18,
-                                   waic_m19,waic_m20,waic_m21,waic_m22))
-# M20 wins
-bn_neg_loo = loo_compare(x = list(loo_m16,loo_m17,loo_m18,
-                                  loo_m19,loo_m20,loo_m21,loo_m22))
-# M20 wins
-bn_neg_waic_s = loo_compare(x = list(waic_m18,waic_m21))
-bn_neg_loo_s = loo_compare(x = list(loo_m18,loo_m21))
-
-
-gg = "bn";
-cc = "Neutral";
-m = "M16";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m16 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m16 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M17";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m17 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m17 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M18";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m18 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m18 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M19";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m19 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m19 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M20";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m20 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m20 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M21";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m21 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m21 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M22";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m22 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m22 = loo(loglik,r_eff = r_eff,cores = 3)
-
-bn_neu_waic = loo_compare(x = list(waic_m16,waic_m17,waic_m18,
-                                   waic_m19,waic_m20,waic_m21,waic_m22))
-# M15 wins (followed by M18)
-bn_neu_loo = loo_compare(x = list(loo_m16,loo_m17,loo_m18,
-                                  loo_m19,loo_m20,loo_m21,loo_m22))
-# M17 Wins
-
-bn_neu_waic_s = loo_compare(x = list(waic_m17,waic_m19,waic_m18))
-bn_neu_loo_s = loo_compare(x = list(loo_m17,loo_m19,loo_m18))
-
-gg = "hc";
-cc = "Negative";
-
-m = "M16";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m16 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m16 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M17";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m17 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m17 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M18";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m18 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m18 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M19";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m19 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m19 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M20";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m20 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m20 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M21";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m21 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m21 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M22";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m22 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m22 = loo(loglik,r_eff = r_eff,cores = 3)
-
-hc_neg_waic = loo_compare(x = list(waic_m16,waic_m17,waic_m18,
-                                   waic_m19,waic_m20,waic_m21,waic_m22))
-# M20 wins
-hc_neg_loo = loo_compare(x = list(loo_m16,loo_m17,loo_m18,
-                                  loo_m19,loo_m20,loo_m21,loo_m22))
-
-
-hc_neg_waic_s = loo_compare(x = list(waic_m17,waic_m19,waic_m18))
-hc_neg_loo_s = loo_compare(x = list(loo_m17,loo_m19,loo_m18))
-
-
-gg = "hc";
-cc = "Neutral";
-
-m = "M16";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m16 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m16 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M17";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m17 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m17 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M18";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m18 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m18 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M19";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m19 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m19 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M20";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m20 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m20 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M21";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m21 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m21 = loo(loglik,r_eff = r_eff,cores = 3)
-m = "M22";
-load(file.path(resultFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_v6B.RData",sep="")) )
-code.samples<- as.mcmc.list(results)
-mcmc.mat <- as.matrix(code.samples, chains = F)
-dic = round(mean(mcmc.mat[,"deviance"])  + .5 * var(mcmc.mat[,"deviance"]))
-N = nrow(Data_partial)
-chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
-loglik <- chain[,paste0("log_lik[",1:N,"]")]
-waic_m22 = waic(loglik)
-r_eff =  relative_eff(exp(loglik), chain_id = rep(1:3, each = 15000),
-                      cores = 3)
-loo_m22 = loo(loglik,r_eff = r_eff,cores = 3)
-
-hc_neu_waic = loo_compare(x = list(waic_m16,waic_m17,waic_m18,
-                                   waic_m19,waic_m20,waic_m21,waic_m22))
-# M18 wins
-hc_neu_loo = loo_compare(x = list(loo_m16,loo_m17,loo_m18,
-                                  loo_m19,loo_m20,loo_m21,loo_m22))
-#m20
-
-hc_neu_waic_s = loo_compare(x = list(waic_m17,waic_m19,waic_m18))
-hc_neu_loo_s = loo_compare(x = list(loo_m17,loo_m19,loo_m18))
-
-
-hc_neu_loo # M21 (weights, NDT, Time)
-hc_neg_loo # M20 (weights, ndt)
-bn_neu_loo # M18 (Time, b1, b2)
-bn_neg_loo # M20 (weights, ndt)
-
-hc_neu_waic # M18 (time, weights)
-hc_neg_waic # M20 (weights, ndt)
-bn_neu_waic # M18 (time, weights)
-bn_neg_waic # M20 (weights, ndt)
-
-
-
-# Just models with time, b1/b2
-hc_neu_loo_s # M18 (weights)
-hc_neg_loo_s # M19 (weights)
-bn_neu_loo_s # M18 (time)
-bn_neg_loo_s # M19 (weights)
-
-
-hc_neu_waic_s
-hc_neg_waic_s
-bn_neu_waic_s
-bn_neg_waic_s
-
-
-# What we want to know is how food x condition affects time, weights
-# So let's just see if NDT helps
-
