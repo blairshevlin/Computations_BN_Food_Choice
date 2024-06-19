@@ -247,7 +247,7 @@ params <- DataSim %>%
 params %>% group_by(Dx,foodType,cond) %>% summarise(m = mean(time), s = sd(time))
 
 # Save
-save(DataSim, file=recFolder / "DataSim_M3.RData")
+save(DataSim, file=dataFolder / "DataSim_M3.RData")
 
 # Run recovery
 
@@ -375,14 +375,14 @@ for (cc in c('Negative',"Neutral")) {
   
 }
 }
-df.fit.full$type = "fit"
+df.fit.full$type = "Estimated"
 
 # Load recovery params
 df.rec.full <- NULL
 
 for (cc in c('Negative',"Neutral")) {
   for (gg in c("BN",'HC')) {
-    load(paste0(resultFolder,"/recover_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings.RData"))
+    load(paste0(recFolder,"/recover_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings.RData"))
     
     chain=rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
     
@@ -424,7 +424,7 @@ for (cc in c('Negative',"Neutral")) {
   }
 }
 
-df.rec.full$type = "recovered"
+df.rec.full$type = "Recovered"
 
 
 df.full <- rbind(df.rec.full, df.fit.full)
@@ -435,16 +435,6 @@ df.long <- df.full %>%
                names_to = "param") %>%
   pivot_wider(names_from = type,
               values_from = value)
-
-# Separated by FT and Group
-df.long %>%
-  ggplot(aes(x = fit, y = recovered)) +
-  theme_pubr() +
-  facet_wrap(~param, scales = "free") +
-  geom_abline(slope = 1, intercept = 0,
-              linetype = "dashed", color = "gray") +
-  geom_point(aes( color = Dx)) +
-  stat_cor(method = "pearson")
 
 # Combine
 params <- df.long %>%
@@ -464,7 +454,7 @@ params <- df.long %>%
   )
 
 figureS1 = params %>%
-  ggplot(aes(x = fit, y = recovered)) +
+  ggplot(aes(x = Estimated, y = Recovered)) +
   theme_pubr(base_size = 18) +
   facet_wrap(~params, scales = "free",
              labeller = label_parsed) +
