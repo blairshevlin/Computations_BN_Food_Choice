@@ -59,7 +59,7 @@ for (gg in c("BN","HC")) {
     distinct() %>%
     filter(cond == cc,
            Dx == gg) %>%
-    mutate(foodType = ifelse(foodType == "hf",2,1)
+    mutate(foodType = ifelse(foodType == "High Fat",2,1)
            )
   
   idxR = ordered(Data_partial$idx)
@@ -89,7 +89,7 @@ DataSim<-NULL
 for (gg in c("BN","HC")) {
   subj <- unique(DDataSim$idxP[DDataSim$Dx == gg])
   for (cc in c("Negative","Neutral")) {
-    load(paste0(resFolder,"/params_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings.RData"))
+    load(paste0(resFolder,"/params_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings_converted.RData"))
     chain=rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
     for (s in subj){
       wt_lf = mean(chain[,c( paste( c("b1.p[",toString(s),",1]"), collapse = ""))])
@@ -237,7 +237,7 @@ DataSim <- DataSim %>%
          bound = unlist(bound), cond = unlist(cond),
          time = unlist(time), choice = unlist(choice),
          rt = unlist(rt),
-         foodType = ifelse(foodType == 2, "hf","lf"))
+         foodType = ifelse(foodType == 2, "High Fat","Low Fat"))
 
 # Extract parameters
 params <- DataSim %>%
@@ -282,7 +282,7 @@ for (gg in c("BN","HC")){
         
         ns = length(unique(idxP))
         
-        fat = ifelse(Data_partial$foodType=="hf",2,1)
+        fat = ifelse(Data_partial$foodType=="High Fat",2,1)
         
         nc = length(unique(fat))
         
@@ -324,7 +324,7 @@ for (gg in c("BN","HC")){
                             monitor=monitor, data=dat, n.chains=3, inits=c(inits1,inits2, inits3), 
                             plots = TRUE, method="parallel", module="wiener", burnin=85000, sample=15000, thin=10)
         save(results,
-        Data_partial, file= paste0(recFolder,"/recovery_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,".RData"))   
+        Data_partial, file= paste0(recFolder,"/recovery_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings_converted.RData"))   
     }
 }
 
@@ -334,7 +334,7 @@ for (gg in c("BN","HC")){
 df.fit.full <- NULL
 for (cc in c('Negative',"Neutral")) {
   for (gg in c("BN",'HC')) {
-    load(paste0(resFolder,"/params_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings.RData"))
+    load(paste0(resFolder,"/params_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings_converted.RData"))
   chain=rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
 
   subj <- unique(Data_partial$idxP)
@@ -382,7 +382,7 @@ df.rec.full <- NULL
 
 for (cc in c('Negative',"Neutral")) {
   for (gg in c("BN",'HC')) {
-    load(paste0(recFolder,"/recover_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings.RData"))
+    load(paste0(recFolder,"/recovery_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings_converted.RData"))
     
     chain=rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
     

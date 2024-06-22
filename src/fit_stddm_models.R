@@ -163,7 +163,7 @@ nM = length(models_of_interest)
 for (gg in c("HC","BN")) {
   for (cc in c("Negative","Neutral")) {
     for (m in models_of_interest) {
-      load(file.path(resFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings.RData",sep="")) )
+      load(file.path(resFolder,paste("params_HtSSM_FIT_",m,"_Dx-",gg,"_","Cond-",cc,"_rawRatings_converted.RData",sep="")) )
       code.samples<- as.mcmc.list(results)
       mcmc.mat <- as.matrix(code.samples, chains = F)
       rm(code.samples)
@@ -185,10 +185,8 @@ for (gg in c("HC","BN")) {
 
 # Report WAIC scores
 dic.df %>%
-  pivot_longer(cols = c(dic,waic,loo)) %>%
-  filter(name == "waic") %>%
-  group_by(name,Dx,model) %>%
-  summarise(val = round(sum(value)))%>%
+  group_by(Dx,model) %>%
+  summarise(val = round(sum(waic)))%>%
   mutate(
          Dx = factor(Dx, levels = c("HC","BN"))
         ) %>%
