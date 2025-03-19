@@ -22,7 +22,8 @@
 # 06/17/24      Blair Shevlin                         Behavioral code for original manuscript
 # 06/18/24      Blair Shevlin                         Modeling code for original manuscript
 # 06/20/24      Blair Shevlin                         Symptom severity code for original manuscript
-
+# 03/12/24      Blair Shevlin                         Affect change code for response to reviewers
+# 03/18/24      Blair Shevlin                         Simple effects analysis for response to reviewers
 
 # Packages required
 required_packages <- c(
@@ -42,8 +43,7 @@ required_packages <- c(
   "faux",
   "ggeffects",
   "lsmeans",
-  "glmmTMB"
-)
+  "glmmTMB")
 
 # Check and install missing packages
 install_if_missing <- function(p) {
@@ -85,13 +85,16 @@ glm.1 <- glmer(data = beh.df,
                family=binomial,
                control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(glm.1)
-# Table S.1 for supplements
+# Table S.9 for supplements
 
 # Marginal Means
 lsmeans(glm.1, specs = ~ Dx , type = "response")
 ### Note --- subtract 1 from these probs to get reference item selection
 lsmeans(glm.1, specs = ~ Dx * food , type = "response")
 lsmeans(glm.1, specs = ~ Dx * food * cond, type = "response")
+
+emm <- emmeans(glm.1, ~ Dx | food * cond)
+pairs(emm)
 
 # Model 2: affect x group + group x health + group x taste
 glm.2 <- glmer(data = beh.df,
@@ -105,7 +108,7 @@ glm.2 <- glmer(data = beh.df,
                family=binomial,
                control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(glm.2)
-# Table S2 for supplements
+# Table S10 for supplements
 
 # Model 3: Self-control trials
 data.sc <- beh.df %>%
@@ -127,7 +130,7 @@ glm.3 <- glmer(data = data.sc,
                family=binomial,
                control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(glm.3)
-# Supplementary Table S3
+# Supplementary Table S11
 
 # Model 4: Response times
 beh.df$choice_c = factor(beh.df$choice, levels = c(0,1), labels = c("Reference item","Presented item"))
@@ -139,7 +142,7 @@ lm.1 <- lmer(data = beh.df,
                REML = F,
                control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(lm.1)
-# Supplementary Table S4
+# Supplementary Table S12
 
 
 # Panels for Figure 2
@@ -287,21 +290,22 @@ tHin.lm <- lmer (data=tHin.df,
                  REML=F,
                  control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(tHin.lm) 
-# Supplementary Table 5
+# Supplementary Table S2
 
-#  Within group: cond x Food
-tHin.lm.b1 <- lmer(data=tHin.df[tHin.df$Dx == "Bulimia Nervosa",],
-                 formula = vals ~ cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-tHin.lm.b2 <- lmer(data=tHin.df[tHin.df$Dx == "Healthy Controls",],
-                 formula = vals ~ cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(tHin.lm.b2) 
-summary(tHin.lm.b1);
-# Supplementary Table 6
+# For Group by Food Type interaction for each condition
+emm_ft_cond <- emmeans(tHin.lm, ~ Dx * foodType | cond)
+pairs(emm_ft_cond, by = "Dx", adjust ="none")        # Looking at food type effect for each group in Neutral
+# Confirmed that the difference between LF-HF in Neutral condition is significant for BN but not HC group
 
+# Analyze the effect separately for each food type
+emm_by_foodtype <- emmeans(tHin.lm, ~ Dx * cond | foodType)
+
+foodType_contrasts <- contrast(emm_by_foodtype, 
+                              interaction = "pairwise", 
+                              by = "foodType")
+print(foodType_contrasts)
+# Showing the difference between HC and BN across conditions occured for LF but not HF foods
+# Supplementary Table S3
 
 # Attribute Weights
 
@@ -319,7 +323,19 @@ taste.lm1 <- lmer (data=taste.df,
                REML=F,
                control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(taste.lm1)
-# Supplementary Table 7
+# Supplementary Table S4
+
+# Simple effects
+emm_taste_group <- emmeans(taste.lm1, ~ Dx | cond)
+emm_taste_group_cont = pairs(emm_taste_group)  %>% as.data.frame() # Group differences for each condition
+emm_taste_group_cont$p.value
+
+emm_taste_cond <- emmeans(taste.lm1, ~ cond | Dx)
+emm_taste_cond_cont = pairs(emm_taste_cond)
+
+emm_taste_ft <- emmeans(taste.lm1, ~ foodType | Dx)
+emm_taste_ft_cont = pairs(emm_taste_ft)
+# Supplementary Table S5
 
 ## Health
 health.df <- params %>%
@@ -335,33 +351,21 @@ health.lm1 <- lmer (data=health.df,
                     REML=F,
                     control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(health.lm1)
-# Supplementary Table 8
+# Supplementary Table S6
 
-# Within group: cond x Food
-taste.lm.b1 <- lmer(data=taste.df[taste.df$Dx == "Bulimia Nervosa",],
-                 formula = vals ~ cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-taste.lm.b2 <- lmer(data=taste.df[taste.df$Dx == "Healthy Controls",],
-                 formula = vals ~ cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(taste.lm.b2) 
-summary(taste.lm.b1); 
-# Supplementary Table 9
 
-# Within group: cond x Food
-health.lm.b1 <- lmer(data=health.df[health.df$Dx == "Bulimia Nervosa",],
-                 formula = vals ~ cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-health.lm.b2 <- lmer(data=health.df[health.df$Dx == "Healthy Controls",],
-                 formula = vals ~ cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(health.lm.b2) 
-summary(health.lm.b1); 
-# Supplementary Table 10
+emm_health_group <- emmeans(health.lm1, ~ Dx | cond)
+emm_health_group_cont = pairs(emm_health_group)  %>% as.data.frame() # Group differences for each condition
+emm_health_group_cont
+
+emm_health_cond <- emmeans(health.lm1, ~ cond | Dx)
+emm_health_cond_cont = pairs(emm_health_cond)
+
+# Food type differences for each group
+emm_health_group_food <- emmeans(health.lm1, ~ foodType | Dx)
+emm_health_group_food_cont = pairs(emm_health_group_food) %>% as.data.frame()
+emm_health_group_food_cont
+# Supplementary Table S7
 
 # Figure 4
 fig4a <- params %>%
@@ -629,7 +633,7 @@ sbe.m = glmmTMB(SBE_SUM ~ `Neutral_Low-Fat` + `Neutral_High-Fat`  + `Negative_Lo
                    ziformula=~1,
                    family=nbinom1)
 
-summary(sbe.m)
+summary(sbe.m) # Supplementary Table S8 (Top)
 obe.m = glmmTMB(OBE_SUM ~ `Neutral_Low-Fat` + `Neutral_High-Fat`  + `Negative_Low-Fat` +`Negative_High-Fat`,
                    data=LOC.tHin.wide,
                    ziformula=~1,
@@ -637,8 +641,7 @@ obe.m = glmmTMB(OBE_SUM ~ `Neutral_Low-Fat` + `Neutral_High-Fat`  + `Negative_Lo
 summary(
 obe.m
 )
-# Supplementary Table 7
-
+# Supplementary Table S8 (Bottom)
 
 ############################
 # Supplementary Parameters #
@@ -653,8 +656,7 @@ ndt.lm <- lmer (data=ndt.df,
                     formula = vals ~ Dx * cond  + (1|idx),
                     REML=F,
                     control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(ndt.lm)
-# supplementary table 13
+summary(ndt.lm) # Table S22
 
 bound.df <- params %>%
   filter(params == "boundary") %>%
@@ -665,8 +667,7 @@ bound.lm <- lmer (data=bound.df,
                     formula = vals ~ Dx * cond  + (1|idx),
                     REML=F,
                     control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(bound.lm)
-# supplementary table 14
+summary(bound.lm) # Table 23
 
 bias.df <- params %>%
   filter(params == "bias") %>%
@@ -677,5 +678,147 @@ bias.lm <- lmer (data=bias.df,
                     formula = vals ~ Dx * cond  + (1|idx),
                     REML=F,
                     control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(bias.lm)
-# supplementary table 15
+summary(bias.lm) # Table 24
+
+
+#########################
+# Response to reviewers #
+#########################
+
+# What emotions significantly changed?
+POMS = mh %>%
+  dplyr::select(idx,Dx,
+    PostPOMSTotal.NA_Neg , PrePOMSTotal.NA_Neg,
+    PostPOMSTotal.NA_Neu , PrePOMSTotal.NA_Neu,
+    PostPOMSAnger_Neg , PrePOMSAnger_Neg,
+    PostPOMSAnger_Neu , PrePOMSAnger_Neu,
+    PostPOMSConfusion_Neg , PrePOMSConfusion_Neg,
+    PostPOMSConfusion_Neu , PrePOMSConfusion_Neu,
+    PostPOMSDepression_Neg , PrePOMSDepression_Neg,
+    PostPOMSDepression_Neu , PrePOMSDepression_Neu,
+    PostPOMSTension_Neg , PrePOMSTension_Neg,
+    PostPOMSTension_Neu , PrePOMSTension_Neu,
+    PostPOMSFatigue_Neg , PrePOMSFatigue_Neg,
+    PostPOMSFatigue_Neu , PrePOMSFatigue_Neu,
+    PostPOMSVigour_Neg , PrePOMSVigour_Neg,
+    PostPOMSVigour_Neu , PrePOMSVigour_Neu,
+    ) %>%
+    pivot_longer(cols=c(PostPOMSTotal.NA_Neg , PrePOMSTotal.NA_Neg,
+    PostPOMSTotal.NA_Neu , PrePOMSTotal.NA_Neu,
+    PostPOMSAnger_Neg , PrePOMSAnger_Neg,
+    PostPOMSAnger_Neu , PrePOMSAnger_Neu,
+    PostPOMSConfusion_Neg , PrePOMSConfusion_Neg,
+    PostPOMSConfusion_Neu , PrePOMSConfusion_Neu,
+    PostPOMSDepression_Neg , PrePOMSDepression_Neg,
+    PostPOMSDepression_Neu , PrePOMSDepression_Neu,
+    PostPOMSTension_Neg , PrePOMSTension_Neg,
+    PostPOMSTension_Neu , PrePOMSTension_Neu,
+    PostPOMSFatigue_Neg , PrePOMSFatigue_Neg,
+    PostPOMSFatigue_Neu , PrePOMSFatigue_Neu,
+    PostPOMSVigour_Neg , PrePOMSVigour_Neg,
+    PostPOMSVigour_Neu , PrePOMSVigour_Neu,
+                )) %>%
+    mutate(item = ifelse(grepl("Total",name), "Total", 
+            ifelse(grepl("Anger",name), "Anger",
+            ifelse(grepl("Confusion",name), "Confusion",
+            ifelse(grepl("Depression",name), "Depression",
+            ifelse(grepl("Tension",name), "Tension", 
+            ifelse(grepl("Fatigue",name), "Fatigue", "Vigor")
+            ))))),
+            time = factor(ifelse(grepl("Post",name),"Post","Pre"),
+                    levels = c("Pre","Post")),
+            cond = factor(ifelse(grepl("Neg",name), "Negative", "Neutral"),
+                    levels = c("Neutral","Negative")),
+            Dx = factor(Dx, levels = c("HC","BN")),
+            item = factor(item, 
+            levels = c("Total","Anger", "Confusion", "Depression", "Fatigue","Tension","Vigor"))
+            ) %>%
+    dplyr::select(!name)
+
+Total_lmer = lmer(data = POMS[POMS$item == "Total",], 
+                  formula = value ~ Dx * cond * time + (1|idx), REML=F)
+summary(Total_lmer) # Table S1
+
+Total_aov = aov(data = POMS[POMS$item == "Total",], 
+                  formula = value ~ Dx * cond * time )
+summary(Total_aov)
+
+TukeyHSD(Total_aov, which = "Dx")
+TukeyHSD(Total_aov, which = "time:cond")
+
+# For the Supplementary Materials
+Anger_lmer = lmer(data = POMS[POMS$item == "Anger",], formula = value ~  Dx * cond * time + (1|idx), REML=F)
+Confusion_lmer = lmer(data = POMS[POMS$item == "Confusion",], formula = value ~ Dx * cond * time + (1|idx), REML=F)
+Depression_lmer = lmer(data = POMS[POMS$item == "Depression",], formula = value ~ Dx * cond * time  + (1|idx), REML=F)
+Tension_lmer = lmer(data = POMS[POMS$item == "Tension",], formula = value ~ Dx * cond * time  + (1|idx), REML=F)
+Fatigue_lmer = lmer(data = POMS[POMS$item == "Fatigue",], formula = value ~ Dx * cond * time + (1|idx), REML=F)
+Vigour_lmer = lmer(data = POMS[POMS$item == "Vigor",], formula = value ~ Dx * cond * time  + (1|idx), REML=F)
+
+summary(Anger_lmer) # Greater in negative (Table S26)
+summary(Confusion_lmer) # Greater in negative (Table S27)
+summary(Depression_lmer) # Greater in negative (Table S28)
+summary(Fatigue_lmer) # NS greater in negative (Table S29)
+summary(Tension_lmer) # Greater in negative (Table S30)
+summary(Vigour_lmer) # Less in negative (Table S31)
+
+F.s2 = 
+POMS %>%
+  filter(item != "Total") %>%
+  ggplot(aes(x = cond, y = value, 
+      group = interaction(time,Dx),
+      color = Dx, fill = Dx,
+      alpha = time) ) +
+    theme_pubr(base_size = 44) +
+    facet_wrap(~item, scales = "free") +
+    stat_summary(geom="col",stat= "identity",
+      position = position_dodge2(width = .5)) +
+    scale_color_brewer(type = "qual") +
+    scale_fill_brewer(type = "qual") +
+    scale_alpha_discrete(range = c(0.5, 0.9)) +
+    labs(x = element_blank(), y = "POMS Score",
+    color = "Group", fill = "Group", alpha = "Time",group = element_blank() ) +
+    theme(axis.text.x = element_text(angle = 25, vjust = 1, hjust=1)) +
+    theme(legend.position=c(.07,.94),legend.box = "horizontal")
+
+png(filename=figPath / "figureS2.png",  
+width = 3000, height = 2400)
+plot(F.s2)
+dev.off()
+
+# Relationship with other self report measures
+
+alt_selfreport = params_mh %>%
+  filter(Dx == "BN", params %in% c("wt","wh","tHin")) %>%
+  dplyr::select(idx,cond,foodType,params,vals,
+  DERS.Total.Score, BDI, EDE.Q.Total.Score,PostNeg_STAI.S,
+  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency
+         ) %>%
+  group_by(idx,params) %>%
+  mutate(params = recode(params,
+                        wt = 'omega[taste]',
+                        wh = 'omega[health]',
+                        tHin = 'tau[s]'),
+         foodType = factor(foodType,
+                           levels = c("Low-Fat","High-Fat")),
+         cond = factor(cond,
+                       levels = c("Neutral","Negative"))
+  ) %>% 
+  pivot_longer(values_to = "score", cols = c(DERS.Total.Score, BDI, EDE.Q.Total.Score,PostNeg_STAI.S,
+  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency)) %>%
+  pivot_wider(names_from = c(cond,foodType), values_from = vals)
+
+tau.urg = lm(data = alt_selfreport[alt_selfreport$params == "tau[s]" & alt_selfreport$name == "UPPS.P.Negative.Urgency", ],
+          formula = score ~  `Neutral_Low-Fat` + `Neutral_High-Fat` + `Negative_Low-Fat` + `Negative_High-Fat`
+  )
+taste.urg = lm(data = alt_selfreport[alt_selfreport$params == "omega[taste]" & alt_selfreport$name == "UPPS.P.Negative.Urgency", ],
+          formula = score ~  `Neutral_Low-Fat` + `Neutral_High-Fat` + `Negative_Low-Fat` + `Negative_High-Fat`
+  )
+health.urg = lm(data = alt_selfreport[alt_selfreport$params == "omega[health]" & alt_selfreport$name == "UPPS.P.Negative.Urgency", ],
+          formula = score ~  `Neutral_Low-Fat` + `Neutral_High-Fat` + `Negative_Low-Fat` + `Negative_High-Fat`
+  )
+
+
+summary(tau.urg) 
+summary(taste.urg)
+summary(health.urg)
+# Table S32
