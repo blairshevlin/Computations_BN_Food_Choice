@@ -22,8 +22,10 @@
 # 06/17/24      Blair Shevlin                         Behavioral code for original manuscript
 # 06/18/24      Blair Shevlin                         Modeling code for original manuscript
 # 06/20/24      Blair Shevlin                         Symptom severity code for original manuscript
-# 03/12/24      Blair Shevlin                         Affect change code for response to reviewers
-# 03/18/24      Blair Shevlin                         Simple effects analysis for response to reviewers
+# 03/12/25      Blair Shevlin                         Affect change code for response to reviewers
+# 03/18/25      Blair Shevlin                         Simple effects analysis for response to reviewers
+# 03/21/25      Blair Shevlin                         Simple effects analyses of affect change
+# 03/23/25      Blair Shevlin                         Alt. symptom severity for reviewers
 
 # Packages required
 required_packages <- c(
@@ -220,7 +222,7 @@ ggplot(hr.beta, aes(x = attr , y = m, color = Dx, fill = Dx, group = Dx)) +
 figure2 = fig2a + fig2b  +
   plot_annotation(tag_levels = 'A')
 
-ggsave(file = figPath / "figure2.png", plot = figure2, width = 12, height = 8)
+ggsave(file = figPath / "figure2_final.tiff", plot = figure2, width = 12, height = 8)
 
 ##################################
 # Computational modeling results #
@@ -231,7 +233,12 @@ df.fit.full <- NULL
 
 for (cc in c("Neutral","Negative")) {
   for (gg in c("BN","HC")) {
-    load(file.path(resPath / 'stDDM' / "estimation" ,paste("/params_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings_converted.RData",sep="")))
+    if (gg == "BN" & cc == "Negative"){
+      # Load in file that required re-estimation to ensure convergence
+      load(file.path(resPath,paste("/stDDM/estimation/params_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings_converted_rest.RData",sep="")) )
+    } else {
+        load(file.path(resPath,paste("/stDDM/estimation/params_HtSSM_FIT_M3_Dx-",gg,"_","Cond-",cc,"_rawRatings_converted.RData",sep="")) )
+    }
     idxP = unique(Data_partial$idxP)
     
     chain=rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
@@ -304,7 +311,7 @@ foodType_contrasts <- contrast(emm_by_foodtype,
                               interaction = "pairwise", 
                               by = "foodType")
 print(foodType_contrasts)
-# Showing the difference between HC and BN across conditions occured for LF but not HF foods
+  # Showing the difference between HC and BN across conditions occured for LF but not HF foods
 # Supplementary Table S3
 
 # Attribute Weights
@@ -328,13 +335,18 @@ summary(taste.lm1)
 # Simple effects
 emm_taste_group <- emmeans(taste.lm1, ~ Dx | cond)
 emm_taste_group_cont = pairs(emm_taste_group)  %>% as.data.frame() # Group differences for each condition
+emm_taste_group_cont
 emm_taste_group_cont$p.value
 
 emm_taste_cond <- emmeans(taste.lm1, ~ cond | Dx)
 emm_taste_cond_cont = pairs(emm_taste_cond)
+emm_taste_cond_cont
 
 emm_taste_ft <- emmeans(taste.lm1, ~ foodType | Dx)
-emm_taste_ft_cont = pairs(emm_taste_ft)
+emm_taste_group_food_cont = pairs(emm_taste_ft) %>% as.data.frame()
+emm_taste_group_food_cont
+emm_taste_group_food_cont$p.value
+
 # Supplementary Table S5
 
 ## Health
@@ -353,18 +365,20 @@ health.lm1 <- lmer (data=health.df,
 summary(health.lm1)
 # Supplementary Table S6
 
-
 emm_health_group <- emmeans(health.lm1, ~ Dx | cond)
 emm_health_group_cont = pairs(emm_health_group)  %>% as.data.frame() # Group differences for each condition
 emm_health_group_cont
+emm_taste_group_cont$p.value
 
 emm_health_cond <- emmeans(health.lm1, ~ cond | Dx)
 emm_health_cond_cont = pairs(emm_health_cond)
-
+emm_health_cond_cont
 # Food type differences for each group
 emm_health_group_food <- emmeans(health.lm1, ~ foodType | Dx)
 emm_health_group_food_cont = pairs(emm_health_group_food) %>% as.data.frame()
 emm_health_group_food_cont
+emm_health_group_food_cont$p.value
+
 # Supplementary Table S7
 
 # Figure 4
@@ -499,7 +513,7 @@ figure4 = fig4a + fig4b + fig4c +
   plot_layout(guides = "collect") +
   plot_annotation(tag_levels = 'A') & theme(legend.position = 'bottom')
 
-ggsave(file = figPath / "figure4.png", plot = figure4, width = 12, height = 8)
+ggsave(file = figPath / "figure4_final.tiff", plot = figure4, width = 12, height = 8)
 
 ###################
 # Symtom Severity #
@@ -599,10 +613,12 @@ fig5 = ggplot(LOC.df[LOC.df$params == "tau[s]" & LOC.df$LOC == "SBE_SUM",],
                               override.aes=list(size = 5,
                                                 color = "black",alpha=1))
   )
+
+
 taste_text_neg <- data.frame(SUM = -10,vals = -.75,lab = "Taste Earlier",
                              cond = factor( "Negative",c("Neutral","Negative")),
                              foodType = c("Low-Fat","Low-Fat"))
-health_text_neg <- data.frame(SUM = -10,vals = -.6,lab = "Health Earlier",
+health_text_neg <- data.frame(SUM = -10,vals = -.63,lab = "Health Earlier",
                              cond = factor( "Negative",c("Neutral","Negative")),
                              foodType = c("Low-Fat","Low-Fat"))
 taste_text_neu <- data.frame(SUM = -10,vals = -.6,lab = "Taste Earlier",
@@ -617,8 +633,45 @@ figure5 = fig5 +
   geom_text(data = health_text_neg,label = "Health Earlier",color="black",size=6) +
   geom_text(data = health_text_neu,label = "Health Earlier",color="black",size=6)
 
-ggsave(file = figPath / "figure5.png", plot = figure5, width = 12, height = 8)
+ggsave(file = figPath / "figure5_final.tiff", plot = figure5, width = 12, height = 8)
 
+fig5b = ggplot(LOC.df[LOC.df$params == "tau[s]" & LOC.df$LOC == "OBE_SUM",], 
+       aes(x = vals, y = SUM, color = cond, fill = cond,
+           linetype = foodType, shape = foodType)) +
+  theme_pubr(base_size = 18) +
+  geom_vline(data=filter(LOC.df, cond=="Neutral"), aes(xintercept=0), 
+             linetype = "dashed",
+             linewidth = 1.5,
+             colour="gray")  +
+  geom_point(alpha = .5,size=3) + 
+  geom_smooth(aes(linetype = foodType),
+              alpha = 0.5,
+              size = 3,
+              method = "glm.nb",
+              se = F) +
+  facet_wrap(~cond, scales = "free_x") + 
+  scale_color_brewer(type = "qual",palette = 6,direction = -1) +
+  scale_fill_brewer(type = "qual",palette = 6,direction = -1) +
+  coord_cartesian(ylim = c(-10,200)) +
+  labs(x = "Attribute Onset Estimate",
+       y = "Subjective Binge Episodes\n(3 Month Total)",
+       shape = "Food Type",
+       linetype = "Food Type") +
+  theme(legend.position="right",
+        legend.key.size =  unit(0.5, "in"),
+        axis.text.x = element_text(
+                                   angle = 45,
+                                   vjust=1, hjust=1),
+        panel.spacing.x = unit(10, "mm"))+
+  guides(color = "none",
+         fill = "none",
+         linetype = guide_legend(order=2,
+                                 override.aes=list(color = "black")),
+         shape = guide_legend(order=3,
+                              override.aes=list(size = 5,
+                                                color = "black",alpha=1))
+  )
+ggsave(file = figPath / "figure5_obe_NOTUSED.tiff", plot = fig5b, width = 12, height = 8)
 
 LOC.tHin.wide = 
 LOC %>%
@@ -628,20 +681,21 @@ LOC %>%
   dplyr::select(idx, SBE_SUM,OBE_SUM,`Neutral_Low-Fat`,`Negative_Low-Fat`,`Neutral_High-Fat`,`Negative_High-Fat`) %>%
   as.data.frame()
 
-sbe.m = glmmTMB(SBE_SUM ~ `Neutral_Low-Fat` + `Neutral_High-Fat`  + `Negative_Low-Fat` +`Negative_High-Fat`,
+sbe.m.full = glmmTMB(SBE_SUM ~ `Neutral_Low-Fat` + `Neutral_High-Fat`  + `Negative_Low-Fat` +`Negative_High-Fat`,
                    data=LOC.tHin.wide,
                    ziformula=~1,
+                   family=nbinom1)                          
+summary(sbe.m.full) # Supplementary Table S8 (Top)
+
+
+obe.m.full = glmmTMB(OBE_SUM ~ `Neutral_Low-Fat` + `Neutral_High-Fat`  + `Negative_Low-Fat` +`Negative_High-Fat`,
+                   data=LOC.tHin.wide,
+                    ziformula=~1,
                    family=nbinom1)
 
-summary(sbe.m) # Supplementary Table S8 (Top)
-obe.m = glmmTMB(OBE_SUM ~ `Neutral_Low-Fat` + `Neutral_High-Fat`  + `Negative_Low-Fat` +`Negative_High-Fat`,
-                   data=LOC.tHin.wide,
-                   ziformula=~1,
-                   family=nbinom1)
-summary(
-obe.m
-)
 # Supplementary Table S8 (Bottom)
+summary(obe.m.full)
+
 
 ############################
 # Supplementary Parameters #
@@ -656,7 +710,7 @@ ndt.lm <- lmer (data=ndt.df,
                     formula = vals ~ Dx * cond  + (1|idx),
                     REML=F,
                     control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(ndt.lm) # Table S22
+summary(ndt.lm) # Table S23
 
 bound.df <- params %>%
   filter(params == "boundary") %>%
@@ -667,7 +721,12 @@ bound.lm <- lmer (data=bound.df,
                     formula = vals ~ Dx * cond  + (1|idx),
                     REML=F,
                     control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(bound.lm) # Table 23
+summary(bound.lm) # Table 24
+
+emm_bound <- emmeans(bound.lm, ~ cond | Dx)
+
+emm_bound_cont = pairs(emm_bound)  %>% as.data.frame() # Group differences for each condition
+emm_bound_cont # Table 25
 
 bias.df <- params %>%
   filter(params == "bias") %>%
@@ -678,7 +737,7 @@ bias.lm <- lmer (data=bias.df,
                     formula = vals ~ Dx * cond  + (1|idx),
                     REML=F,
                     control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(bias.lm) # Table 24
+summary(bias.lm) # Table 26
 
 
 #########################
@@ -739,12 +798,13 @@ Total_lmer = lmer(data = POMS[POMS$item == "Total",],
                   formula = value ~ Dx * cond * time + (1|idx), REML=F)
 summary(Total_lmer) # Table S1
 
-Total_aov = aov(data = POMS[POMS$item == "Total",], 
-                  formula = value ~ Dx * cond * time )
-summary(Total_aov)
-
-TukeyHSD(Total_aov, which = "Dx")
-TukeyHSD(Total_aov, which = "time:cond")
+# Simple effects showing affect change was no different between groups
+emm_by_cond <- emmeans(Total_lmer, ~ Dx * time | cond)
+pairs(emm_by_cond, adjust = "none")
+cond_contrasts <- contrast(emm_by_cond, 
+                              interaction = "pairwise", 
+                              by = "cond")
+print(cond_contrasts)
 
 # For the Supplementary Materials
 Anger_lmer = lmer(data = POMS[POMS$item == "Anger",], formula = value ~  Dx * cond * time + (1|idx), REML=F)
@@ -754,12 +814,12 @@ Tension_lmer = lmer(data = POMS[POMS$item == "Tension",], formula = value ~ Dx *
 Fatigue_lmer = lmer(data = POMS[POMS$item == "Fatigue",], formula = value ~ Dx * cond * time + (1|idx), REML=F)
 Vigour_lmer = lmer(data = POMS[POMS$item == "Vigor",], formula = value ~ Dx * cond * time  + (1|idx), REML=F)
 
-summary(Anger_lmer) # Greater in negative (Table S26)
-summary(Confusion_lmer) # Greater in negative (Table S27)
-summary(Depression_lmer) # Greater in negative (Table S28)
-summary(Fatigue_lmer) # NS greater in negative (Table S29)
-summary(Tension_lmer) # Greater in negative (Table S30)
-summary(Vigour_lmer) # Less in negative (Table S31)
+summary(Anger_lmer) # Greater in negative (Table S27)
+summary(Confusion_lmer) # Greater in negative (Table S28)
+summary(Depression_lmer) # Greater in negative (Table S29)
+summary(Fatigue_lmer) # NS greater in negative (Table S30)
+summary(Tension_lmer) # Greater in negative (Table S31)
+summary(Vigour_lmer) # Less in negative (Table S32)
 
 F.s2 = 
 POMS %>%
@@ -789,9 +849,9 @@ dev.off()
 
 alt_selfreport = params_mh %>%
   filter(Dx == "BN", params %in% c("wt","wh","tHin")) %>%
-  dplyr::select(idx,cond,foodType,params,vals,
+  dplyr::select(idx,cond,foodType,params,vals,EDE.Q.Restraint,
   DERS.Total.Score, BDI, EDE.Q.Total.Score,PostNeg_STAI.S,
-  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency
+  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency, 
          ) %>%
   group_by(idx,params) %>%
   mutate(params = recode(params,
@@ -804,9 +864,10 @@ alt_selfreport = params_mh %>%
                        levels = c("Neutral","Negative"))
   ) %>% 
   pivot_longer(values_to = "score", cols = c(DERS.Total.Score, BDI, EDE.Q.Total.Score,PostNeg_STAI.S,
-  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency)) %>%
+  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency,EDE.Q.Restraint)) %>%
   pivot_wider(names_from = c(cond,foodType), values_from = vals)
 
+# Negative urgency
 tau.urg = lm(data = alt_selfreport[alt_selfreport$params == "tau[s]" & alt_selfreport$name == "UPPS.P.Negative.Urgency", ],
           formula = score ~  `Neutral_Low-Fat` + `Neutral_High-Fat` + `Negative_Low-Fat` + `Negative_High-Fat`
   )
@@ -816,9 +877,22 @@ taste.urg = lm(data = alt_selfreport[alt_selfreport$params == "omega[taste]" & a
 health.urg = lm(data = alt_selfreport[alt_selfreport$params == "omega[health]" & alt_selfreport$name == "UPPS.P.Negative.Urgency", ],
           formula = score ~  `Neutral_Low-Fat` + `Neutral_High-Fat` + `Negative_Low-Fat` + `Negative_High-Fat`
   )
-
-
 summary(tau.urg) 
 summary(taste.urg)
 summary(health.urg)
-# Table S32
+# Table S33
+
+# Restrainttau.urg = lm(data = alt_selfreport[alt_selfreport$params == "tau[s]" & alt_selfreport$name == "UPPS.P.Negative.Urgency", ],
+tau.restraint = lm(data = alt_selfreport[alt_selfreport$params == "tau[s]" & alt_selfreport$name == "EDE.Q.Restraint", ],
+          formula = score ~  `Neutral_Low-Fat` + `Neutral_High-Fat` + `Negative_Low-Fat` + `Negative_High-Fat`
+  )
+taste.restraint = lm(data = alt_selfreport[alt_selfreport$params == "omega[taste]" & alt_selfreport$name == "EDE.Q.Restraint", ],
+          formula = score ~  `Neutral_Low-Fat` + `Neutral_High-Fat` + `Negative_Low-Fat` + `Negative_High-Fat`
+  )
+health.restraint = lm(data = alt_selfreport[alt_selfreport$params == "omega[health]" & alt_selfreport$name == "EDE.Q.Restraint", ],
+          formula = score ~  `Neutral_Low-Fat` + `Neutral_High-Fat` + `Negative_Low-Fat` + `Negative_High-Fat`
+  )
+summary(tau.restraint) 
+summary(taste.restraint)
+summary(health.restraint)
+# Table S34
