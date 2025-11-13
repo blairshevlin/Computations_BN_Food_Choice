@@ -294,8 +294,7 @@ for (gg in c("HC","BN")) {
       tmp.df = data.frame(Dx = gg,
                           cond = cc,
                           model = m,
-                          waic = w$estimates[3],
-                          looic = l$estimates[3]
+                          waic = w$estimates[3]
       )
       dic.df = rbind(dic.df,tmp.df)
     }

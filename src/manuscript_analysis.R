@@ -26,6 +26,9 @@
 # 03/18/25      Blair Shevlin                         Simple effects analysis for response to reviewers
 # 03/21/25      Blair Shevlin                         Simple effects analyses of affect change
 # 03/23/25      Blair Shevlin                         Alt. symptom severity for reviewers
+# 05/27/25      Blair Shevlin                         Final edits for resubmission
+# 11/07/25      Blair Shevlin                         Assessing marginal means for affect change analyses
+# 11/13/25      Blair Shevlin                         Correlations between restriction and binge frequency 
 
 # Packages required
 required_packages <- c(
@@ -299,10 +302,65 @@ tHin.lm <- lmer (data=tHin.df,
 summary(tHin.lm) 
 # Supplementary Table S2
 
+# Laura: If we decide not to use simple effects: we are just going to stay at the highest level of interaction.
+# Then we just interpret three-way and figure. Then  the simple effects are not needed for any of these.
+
+# Alternative: leave in simple effects, what makes sense to report?
+# Hold hand to interpret each. Refer to plot: opposite patterns in neutral condition. 
+# Then after
+
+
+tHin.lm.ne <- lmer (data=tHin.df[tHin.df$cond == "Neutral",],
+                 formula = vals ~ foodType + Dx + (1|idx),
+                 REML=F,
+                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+summary(tHin.lm.ne) 
+
+tHin.lm.na <- lmer (data=tHin.df[tHin.df$cond == "Negative",],
+                 formula = vals ~ foodType + Dx + (1|idx),
+                 REML=F,
+                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+summary(tHin.lm.na) 
+
+tHin.lm.noft <- lmer (data=tHin.df,
+                 formula = vals ~ Dx * cond + (1|idx),
+                 REML=F,
+                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+summary(tHin.lm.noft) 
+
+tHin.lm.twoways <- lmer (data=tHin.df,
+                 formula = vals ~ foodType * cond + Dx * cond + (1|idx),
+                 REML=F,
+                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+summary(tHin.lm.twoways) 
+
+# 1. Simple effects analysis - Group differences within each condition/food type combination
+emmeans(tHin.lm, pairwise ~ Dx | cond * foodType)
+emmeans(tHin.lm, pairwise ~ Dx | cond)
+
+
+# 2. Simple slopes - How each group changes from neutral to negative within each food type
+emmeans(tHin.lm, pairwise ~ cond | Dx * foodType)
+
+# 3. Difference in differences - How the Group x Food_Type interaction changes across affect conditions
+emmeans(tHin.lm, pairwise ~ foodType | Dx * cond)
+
+# 4. Three-way interaction contrasts
+emmeans(tHin.lm, pairwise ~ Dx * cond * foodType)
+
 # For Group by Food Type interaction for each condition
 emm_ft_cond <- emmeans(tHin.lm, ~ Dx * foodType | cond)
 pairs(emm_ft_cond, by = "Dx", adjust ="none")        # Looking at food type effect for each group in Neutral
 # Confirmed that the difference between LF-HF in Neutral condition is significant for BN but not HC group
+
+emm_dx_cond <- emmeans(tHin.lm, ~ Dx * cond | foodType)
+pairs(emm_dx_cond, by = "foodType", adjust ="none")    
+
+emm_dx_cond.collapse = emmeans(tHin.lm, ~ Dx * cond)
+pairs(emm_dx_cond.collapse, adjust ="none")   
+
+# Want difference in difference
+
 
 # Analyze the effect separately for each food type
 emm_by_foodtype <- emmeans(tHin.lm, ~ Dx * cond | foodType)
@@ -313,6 +371,22 @@ foodType_contrasts <- contrast(emm_by_foodtype,
 print(foodType_contrasts)
   # Showing the difference between HC and BN across conditions occured for LF but not HF foods
 # Supplementary Table S3
+
+# Laura's recommendation - effect of condition in each group (collapsing food type)
+emmeans(tHin.lm,  pairwise ~ cond * Dx )
+
+
+emm <- emmeans(tHin.lm, ~ Dx * cond)
+
+# Define the difference-in-differences contrast
+# (Dx1 conda - Dx1 condab) - (Dx2 conda - Dx2 condab)
+contrast_list <- list(
+  "DinD" = c(1, -1, -1, 1)  # Assuming factor level order: Dx1:conda, Dx1:condab, Dx2:conda, Dx2:condab
+)
+
+# Test the contrast
+contrast_result <- contrast(emm, contrast_list)
+summary(contrast_result)
 
 # Attribute Weights
 
@@ -382,7 +456,8 @@ emm_health_group_food_cont$p.value
 # Supplementary Table S7
 
 # Figure 4
-fig4a <- params %>%
+fig4a <- 
+params %>%
   filter(params == "tHin") %>%
   mutate(grouping = ifelse(Dx == "BN" & cond == "Negative",
                            ifelse(foodType == "High-Fat","Negative\nHigh-Fat",
@@ -402,7 +477,7 @@ fig4a <- params %>%
   ggplot(aes(x = foodType, y = vals, color = Dx, 
              group = Dx)) +
   theme_pubr(base_size = 18) +
-  facet_wrap(~cond) +
+  facet_wrap(~factor(cond, levels = c("Neutral", "Negative"))) +  
   geom_hline(yintercept = 0,
              linetype = "dashed") +
   geom_point(position = position_dodge2(width = .75),
@@ -414,6 +489,14 @@ fig4a <- params %>%
   stat_summary(position = position_dodge2(width = .75),
                size = 1.5,
                linewidth = 1.5) +
+                # Add text above and below the line for Negative facet only
+ geom_text(data = data.frame(cond = "Negative", 
+                             x = 1.75, 
+                             y = c(0.03, -0.03),
+                             label = c("Health sooner", "Taste sooner")),
+            aes(x = x, y = y, label = label),
+            inherit.aes = FALSE,
+            size = 4, color = "black") +
   labs(
        y = "Attribute Onset",
        color = "Group",
@@ -690,7 +773,7 @@ summary(sbe.m.full) # Supplementary Table S8 (Top)
 
 obe.m.full = glmmTMB(OBE_SUM ~ `Neutral_Low-Fat` + `Neutral_High-Fat`  + `Negative_Low-Fat` +`Negative_High-Fat`,
                    data=LOC.tHin.wide,
-                    ziformula=~1,
+                  #  ziformula=~1,
                    family=nbinom1)
 
 # Supplementary Table S8 (Bottom)
@@ -800,11 +883,26 @@ summary(Total_lmer) # Table S1
 
 # Simple effects showing affect change was no different between groups
 emm_by_cond <- emmeans(Total_lmer, ~ Dx * time | cond)
-pairs(emm_by_cond, adjust = "none")
+pairs(emm_by_cond)
 cond_contrasts <- contrast(emm_by_cond, 
                               interaction = "pairwise", 
                               by = "cond")
 print(cond_contrasts)
+
+# Simple effects analyses of group differences within each time point
+emm_by_Dx <- emmeans(Total_lmer, ~ cond * time | Dx)
+pairs(emm_by_Dx)
+
+# Coehen's D
+BN_n = length(unique(POMS$idx[POMS$Dx == "BN"]))
+BE_negpre_negpost = 4.837 / sqrt(BN_n)
+BE_neupre_neupost = 1.701 / sqrt(BN_n)
+BE_neg_neu = 4.134 / sqrt(BN_n)
+
+dx_contrasts <- contrast(emm_by_Dx, 
+                              interaction = "pairwise", 
+                              by = "cond")
+print(dx_contrasts)
 
 # For the Supplementary Materials
 Anger_lmer = lmer(data = POMS[POMS$item == "Anger",], formula = value ~  Dx * cond * time + (1|idx), REML=F)
@@ -849,9 +947,13 @@ dev.off()
 
 alt_selfreport = params_mh %>%
   filter(Dx == "BN", params %in% c("wt","wh","tHin")) %>%
+  mutate(SBE_M1 = EDE.SBE.Month.1..episodes.,
+         SBE_M2 = EDE.SBE.Month.2..episodes.,
+         SBE_M3 = EDE.SBE.Month.3..episodes.,
+         SBE_SUM = SBE_M1 + SBE_M2 + SBE_M3) %>%
   dplyr::select(idx,cond,foodType,params,vals,EDE.Q.Restraint,
   DERS.Total.Score, BDI, EDE.Q.Total.Score,PostNeg_STAI.S,
-  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency, 
+  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency, SBE_SUM
          ) %>%
   group_by(idx,params) %>%
   mutate(params = recode(params,
@@ -864,7 +966,7 @@ alt_selfreport = params_mh %>%
                        levels = c("Neutral","Negative"))
   ) %>% 
   pivot_longer(values_to = "score", cols = c(DERS.Total.Score, BDI, EDE.Q.Total.Score,PostNeg_STAI.S,
-  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency,EDE.Q.Restraint)) %>%
+  PostNeu_STAI.S,STAI.T,UPPS.P.Negative.Urgency,EDE.Q.Restraint, SBE_SUM)) %>%
   pivot_wider(names_from = c(cond,foodType), values_from = vals)
 
 # Negative urgency
@@ -896,3 +998,21 @@ summary(tau.restraint)
 summary(taste.restraint)
 summary(health.restraint)
 # Table S34
+
+# Evaluate whether binge frequency measures are correlated with Restrictive subscale
+selfreport = mh %>%
+  filter(Dx == "BN") %>%
+  mutate(SBE_M1 = EDE.SBE.Month.1..episodes.,
+         SBE_M2 = EDE.SBE.Month.2..episodes.,
+         SBE_M3 = EDE.SBE.Month.3..episodes.,
+         SBE_SUM = SBE_M1 + SBE_M2 + SBE_M3,
+         OBE_M1 = EDE.OBE.Month.1..episodes.,
+         OBE_M2 = EDE.OBE.Month.2..episodes.,
+         OBE_M3 = EDE.OBE.Month.3..episodes.,
+         OBE_SUM = OBE_M1 + OBE_M2 + OBE_M3,
+         ) %>%
+  dplyr::select(idx,EDE.Q.Restraint, SBE_SUM,OBE_SUM) 
+
+
+cor.test(selfreport$EDE.Q.Restraint, selfreport$SBE_SUM, method = "spearman")
+cor.test(selfreport$EDE.Q.Restraint, selfreport$OBE_SUM, method = "spearman")
