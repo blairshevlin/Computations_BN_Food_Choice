@@ -45,7 +45,7 @@ struct ddm2w : public Worker {
   // function call operator that work for the specified range (begin/end)
   void operator()(std::size_t begin, std::size_t end) {
 
-    double T = 5.2, dt = 0.001, lt;
+    double T = 15, dt = 0.001, lt;
     lt = (int)(T/dt);
 
     std::vector<double> vec_tHealth(lt,1);

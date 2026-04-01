@@ -21,6 +21,7 @@
 # ====         ================                       ======================
 # 06/18/24      Blair Shevlin                         Wrote code for original manuscript
 # 03/25/25      Blair Shevlin                         Added script to check Gelman-Rubin
+# 02/04/26      Blair Shevlin                         Added LOO-CV calculations
 
 # This version fits foodType WITHIN a condition
 
@@ -267,10 +268,17 @@ res_summary %>% as.data.frame() %>%
 # M3 - BN - Negative: pass!
 
 # Calculate model fit metrics
-dic.df = NULL
+dic.df = data.frame(Dx=character(),
+                     cond=character(),
+                     model=character(),
+                     waic=numeric(),
+                     loo = numeric()
+)
+loo_list <- list()
 models_of_interest= c("M0","M1","M2","M3")
 
 nM = length(models_of_interest)
+
 for (gg in c("HC","BN")) {
   for (cc in c("Negative","Neutral")) {
     for (m in models_of_interest) {
@@ -291,23 +299,109 @@ for (gg in c("HC","BN")) {
       loglik <- chain[,paste0("log_lik[",1:N,"]")]
       rm(chain)
       w = waic(loglik)
+      # Calculate LOO-CV
+      l <- loo(loglik)
+      
+      # Store LOO object in list with informative name
+      loo_name <- paste0("M", m, "_", gg, "_", cc)
+      loo_list[[loo_name]] <- l
+
       tmp.df = data.frame(Dx = gg,
                           cond = cc,
                           model = m,
-                          waic = w$estimates[3]
+                          waic = w$estimates[3],
+                          loo = l$estimates[3]
       )
       dic.df = rbind(dic.df,tmp.df)
     }
   }
 }
 
-# Report WAIC scores
+# Add theta (ndt) models
+for (gg in c("HC","BN")) {
+  for (cc in c("Negative","Neutral")) {
+  load(file.path(resFolder,paste("Feb2026_params_HtSSM_FIT_M3ndt_Dx-",gg,"_","Cond-",cc,".RData",sep="")) )
+    code.samples<- as.mcmc.list(results)
+    mcmc.mat <- as.matrix(code.samples, chains = F)
+    rm(code.samples)
+    N = nrow(Data_partial)
+    chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
+    rm(results,mcmc.mat)
+    loglik <- chain[,paste0("log_lik[",1:N,"]")]
+    rm(chain)
+    w = waic(loglik)
+    # Calculate LOO-CV
+    l <- loo(loglik)
+    
+    # Store LOO object in list with informative name
+    loo_name <- paste0("M3ndt_", gg, "_", cc)
+    loo_list[[loo_name]] <- l
+
+    tmp.df = data.frame(Dx = gg,
+                        cond = cc,
+                        model = "M3ndt",
+                        waic = w$estimates[3],
+                        loo = l$estimates[3]
+    )
+    dic.df = rbind(dic.df,tmp.df)
+  }
+}
+
+# Add bias models
+for (gg in c("HC","BN")) {
+  for (cc in c("Negative","Neutral")) {
+  load(file.path(resFolder,paste("Feb2026_params_HtSSM_FIT_M3bias_Dx-",gg,"_","Cond-",cc,".RData",sep="")) )
+    code.samples<- as.mcmc.list(results)
+    mcmc.mat <- as.matrix(code.samples, chains = F)
+    rm(code.samples)
+    N = nrow(Data_partial)
+    chain <- rbind(results$mcmc[[1]], results$mcmc[[2]], results$mcmc[[3]])
+    rm(results,mcmc.mat)
+    loglik <- chain[,paste0("log_lik[",1:N,"]")]
+    rm(chain)
+    w = waic(loglik)
+    # Calculate LOO-CV
+    l <- loo(loglik)
+    
+    # Store LOO object in list with informative name
+    loo_name <- paste0("M3bias_", gg, "_", cc)
+    loo_list[[loo_name]] <- l
+
+    tmp.df = data.frame(Dx = gg,
+                        cond = cc,
+                        model = "M3bias",
+                        waic = w$estimates[3],
+                        loo = l$estimates[3]
+    )
+    dic.df = rbind(dic.df,tmp.df)
+  }
+}
+
+# Report WAIC/LOO scores
 dic.df %>%
-  group_by(Dx,model) %>%
-  summarise(waic = round(sum(waic))
+  group_by(Dx,model,cond) %>%
+  summarise(waic = round(sum(waic)), loo = round(sum(loo))
   ) %>%
   mutate(
          Dx = factor(Dx, levels = c("HC","BN"))
         ) %>%
-  arrange(model,Dx) %>%
+  arrange(Dx,cond,model) %>%
   as.data.frame()
+
+# Look at loo
+compare_by_group <- function(loo_list, group, condition) {
+  # Get all models for this group
+  group_models <- loo_list[grepl(paste0("_", group, "_", condition), names(loo_list))]
+  
+  # Compare them
+  comparison <- loo_compare(group_models)
+  
+  return(comparison)
+}
+
+# Top model is the best model
+bn_neg_comparison <- compare_by_group(loo_list, "BN", "Negative")
+hc_neg_comparison <- compare_by_group(loo_list, "HC", "Negative")
+bn_neutral_comparison <- compare_by_group(loo_list, "BN", "Neutral")
+hc_neutral_comparison <- compare_by_group(loo_list, "HC", "Neutral")
+# Model 3 is best for both groups

@@ -1,4 +1,9 @@
 /data/*
 /src/CONVERT_ID.R
+/src/Untiled-1.r
+/src/Untiled-2.r
+/src/Untiled-3.r
+/src/manuscript_analysis.R
 /results/stDDM/estimation/*
 /results/stDDM/recovery/*
+.Rproj.user
