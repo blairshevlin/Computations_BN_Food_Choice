@@ -21,6 +21,7 @@
 # ====         ================                       ======================
 # 09/23/24      Blair Shevlin                         Wrote code to generate simulations and figures
 # 09/24/24      Blair Shevlin                         Wrote code for regressions and ranked tests
+# 02/04/26      Blair Shevlin                         Edited simulation code to fix minor bug (censoring at 5.2s)
 
 required_packages = c("DEoptim", "Rcpp", "plyr", "parallel", "RcppParallel","stats4","pracma","runjags","tidyverse","ggpubr", "fs", "here", "lmerTest","ARTool")
 
@@ -146,14 +147,6 @@ for (gg in c("BN","HC")) {
       for (i in 1:nrow(trial_mat_hf)) {
         rts = ddm2_parallel( wt,wh,bound,nDT,time,bias,trial_mat_hf$td[i],trial_mat_hf$hd[i],1,trial_mat_hf$count[i] )
         for (j in 1:length(rts)) {
-          good = 0
-          # Make sure RT is within good boundaries, otherwise re-run
-          while (good == 0) {
-            if (abs(rts[j]) > 0.2 & abs(rts[j]) <= 7) {
-              good = 1
-            }
-            rts[j] = ddm2_parallel(wt,wh,bound,nDT,time,bias,trial_mat_hf$td[i],trial_mat_hf$hd[i],1,1)
-          }
           
           DataSim_Mat_Temp = NULL
           DataSim_Mat_Temp$idx = unique(DDataSim$idx[DDataSim$idxP==s & DDataSim$Dx == gg])
@@ -184,16 +177,7 @@ for (gg in c("BN","HC")) {
 
       for (i in 1:nrow(trial_mat_lf)) {
         rts = ddm2_parallel(wt,wh,bound,nDT,time,bias,trial_mat_lf$td[i],trial_mat_lf$hd[i],1,trial_mat_lf$count[i])
-        for (j in 1:length(rts)) {
-          good = 0
-          # Make sure RT is within good boundaries, otherwise re-run
-          while (good == 0) {
-            if (abs(rts[j]) > 0.2 & abs(rts[j]) <= 7) {
-              good = 1
-            }
-            rts[j] = ddm2_parallel(wt,wh,bound,nDT,time,bias,trial_mat_lf$td[i],trial_mat_lf$hd[i],1,1)
-          }
-          
+        for (j in 1:length(rts)) {          
           DataSim_Mat_Temp = NULL
           DataSim_Mat_Temp$idx = unique(DDataSim$idx[DDataSim$idxP==s & DDataSim$Dx == gg])
           DataSim_Mat_Temp$idxP = s
@@ -239,7 +223,6 @@ DataSim_m0 <- DataSim_m0 %>%
          foodType = ifelse(foodType == 2, "High Fat","Low Fat"))
 # Save
 save(DataSim_m0, file=dataFolder / "DataSim_M0.RData")
-
 
 # Model 1 (Attribute weights depend on food type)
 for (gg in c("BN","HC")) {
@@ -302,14 +285,6 @@ for (gg in c("BN","HC")) {
       for (i in 1:nrow(trial_mat_hf)) {
         rts = ddm2_parallel( wt_hf,wh_hf,bound,nDT,time,bias,trial_mat_hf$td[i],trial_mat_hf$hd[i],1,trial_mat_hf$count[i] )
         for (j in 1:length(rts)) {
-          good = 0
-          # Make sure RT is within good boundaries, otherwise re-run
-          while (good == 0) {
-            if (abs(rts[j]) > 0.2 & abs(rts[j]) <= 7) {
-              good = 1
-            }
-            rts[j] = ddm2_parallel(wt_lf,wh_lf,bound,nDT,time,bias,trial_mat_hf$td[i],trial_mat_hf$hd[i],1,1)
-          }
           
           DataSim_Mat_Temp = NULL
           DataSim_Mat_Temp$idx = unique(DDataSim$idx[DDataSim$idxP==s & DDataSim$Dx == gg])
@@ -341,14 +316,6 @@ for (gg in c("BN","HC")) {
       for (i in 1:nrow(trial_mat_lf)) {
         rts = ddm2_parallel(wt_lf,wh_lf,bound,nDT,time,bias,trial_mat_lf$td[i],trial_mat_lf$hd[i],1,trial_mat_lf$count[i])
         for (j in 1:length(rts)) {
-          good = 0
-          # Make sure RT is within good boundaries, otherwise re-run
-          while (good == 0) {
-            if (abs(rts[j]) > 0.2 & abs(rts[j]) <= 7) {
-              good = 1
-            }
-            rts[j] = ddm2_parallel(wt_lf,wh_lf,bound,nDT,time,bias,trial_mat_lf$td[i],trial_mat_lf$hd[i],1,1)
-          }
           
           DataSim_Mat_Temp = NULL
           DataSim_Mat_Temp$idx = unique(DDataSim$idx[DDataSim$idxP==s & DDataSim$Dx == gg])
@@ -455,14 +422,6 @@ for (gg in c("BN","HC")) {
       for (i in 1:nrow(trial_mat_hf)) {
         rts = ddm2_parallel( wt,wh,bound,nDT,time_hf,bias,trial_mat_hf$td[i],trial_mat_hf$hd[i],1,trial_mat_hf$count[i] )
         for (j in 1:length(rts)) {
-          good = 0
-          # Make sure RT is within good boundaries, otherwise re-run
-          while (good == 0) {
-            if (abs(rts[j]) > 0.2 & abs(rts[j]) <= 7) {
-              good = 1
-            }
-            rts[j] = ddm2_parallel(wt,wh,bound,nDT,time_hf,bias,trial_mat_hf$td[i],trial_mat_hf$hd[i],1,1)
-          }
           
           DataSim_Mat_Temp = NULL
           DataSim_Mat_Temp$idx = unique(DDataSim$idx[DDataSim$idxP==s & DDataSim$Dx == gg])
@@ -494,14 +453,6 @@ for (gg in c("BN","HC")) {
       for (i in 1:nrow(trial_mat_lf)) {
         rts = ddm2_parallel(wt,wh,bound,nDT,time_lf,bias,trial_mat_lf$td[i],trial_mat_lf$hd[i],1,trial_mat_lf$count[i])
         for (j in 1:length(rts)) {
-          good = 0
-          # Make sure RT is within good boundaries, otherwise re-run
-          while (good == 0) {
-            if (abs(rts[j]) > 0.2 & abs(rts[j]) <= 7) {
-              good = 1
-            }
-            rts[j] = ddm2_parallel(wt,wh,bound,nDT,time_lf,bias,trial_mat_lf$td[i],trial_mat_lf$hd[i],1,1)
-          }
           
           DataSim_Mat_Temp = NULL
           DataSim_Mat_Temp$idx = unique(DDataSim$idx[DDataSim$idxP==s & DDataSim$Dx == gg])
@@ -609,15 +560,7 @@ for (gg in c("BN","HC")) {
       for (i in 1:nrow(trial_mat_hf)) {
         rts = ddm2_parallel( wt_hf,wh_hf,bound,nDT,time_hf,bias,trial_mat_hf$td[i],trial_mat_hf$hd[i],1,trial_mat_hf$count[i] )
         for (j in 1:length(rts)) {
-          good = 0
-          # Make sure RT is within good boundaries, otherwise re-run
-          while (good == 0) {
-            if (abs(rts[j]) > 0.2 & abs(rts[j]) <= 7) {
-              good = 1
-            }
-            rts[j] = ddm2_parallel(wt_hf,wh_hf,bound,nDT,time_hf,bias,trial_mat_hf$td[i],trial_mat_hf$hd[i],1,1)
-          }
-          
+         
           DataSim_Mat_Temp = NULL
           DataSim_Mat_Temp$idx = unique(DDataSim$idx[DDataSim$idxP==s & DDataSim$Dx == gg])
           DataSim_Mat_Temp$idxP = s
@@ -648,14 +591,6 @@ for (gg in c("BN","HC")) {
       for (i in 1:nrow(trial_mat_lf)) {
         rts = ddm2_parallel(wt_lf,wh_lf,bound,nDT,time_lf,bias,trial_mat_lf$td[i],trial_mat_lf$hd[i],1,trial_mat_lf$count[i])
         for (j in 1:length(rts)) {
-          good = 0
-          # Make sure RT is within good boundaries, otherwise re-run
-          while (good == 0) {
-            if (abs(rts[j]) > 0.2 & abs(rts[j]) <= 7) {
-              good = 1
-            }
-            rts[j] = ddm2_parallel(wt_lf,wh_lf,bound,nDT,time_lf,bias,trial_mat_lf$td[i],trial_mat_lf$hd[i],1,1)
-          }
           
           DataSim_Mat_Temp = NULL
           DataSim_Mat_Temp$idx = unique(DDataSim$idx[DDataSim$idxP==s & DDataSim$Dx == gg])
@@ -788,10 +723,10 @@ glm.1.m0 <- glmer(data = DataSim_m0,
                    family=binomial,
                    control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(glm.1.m0)
-## Group (b = -0.34, p = 0.006) - yes
-## Food Type (b = -0.01, p = 0.848) - no!
-## Group x Food Type (b = -0.05, p < 0.001) - yes!
-## Group x Affect x Food Type (b = -0.06, p = 0.205) - no
+## Group (b = -0.30, p = 0.022) - yes
+## Food Type (b = -0.06, p = 0.448) - no!
+## Group x Food Type (b = -0.30, p < 0.001) - yes!
+## Group x Affect x Food Type (b = -0.06, p = 0.247) - no
 
 
 # Model 1 (Attribute Weights)
@@ -802,11 +737,10 @@ glm.1.m1 <- glmer(data = DataSim_m1,
                   family=binomial,
                   control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(glm.1.m1)
-## Group (b = -0.28, p = 0.053) - marginal!
-## Food Type (b = 0.42, p < 0.001) - wrong direction
-## Group x Food Type (b = -0.22, p = 0.001) - yes!
-## Group x Affect x Food Type (b = 0.02, p = 0.552) - no
-## NEW: Group x Affect (b = 0.17, p = 0.020) - not in original
+## Group (b = -0.25, p = 0.053) - marginal!
+## Food Type (b = -0.42, p < 0.001) - yes
+## Group x Food Type (b = -0.19, p = 0.051) - marginal
+## Group x Affect x Food Type (b = -0.13, p = 0.552) - yes
 
 
 # Model 2 (Onset Time)
@@ -817,10 +751,10 @@ glm.1.m2 <- glmer(data = DataSim_m2,
                   family=binomial,
                   control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(glm.1.m2)
-## Group (b = -0.42, p = 0.002) - yes
-## Food Type (b = -0.16, p = .128) - no!
+## Group (b = -0.43, p = 0.002) - yes
+## Food Type (b = -0.09, p = .365) - no!
 ## Group x Food Type (b = -0.36, p < 0.001) - yes!
-## Group x Affect x Food Type (b = -0.07, p = 0.195) - yes
+## Group x Affect x Food Type (b = -0.05, p = 0.469) - no
 
 
 # Model 3 (FULL)
@@ -831,10 +765,10 @@ glm.1.m3 <- glmer(data = DataSim_m3,
                   family=binomial,
                   control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
 summary(glm.1.m3)
-## Group (b = -0.36, p = 0.007) - yes
-## Food Type (b = -0.36, p < 0.001) - yes!
-## Group x Food Type (b = -0.27, p = 0.002) - yes!
-## Group x Affect x Food Type (b = 0.03, p = 0.562) - no
+## Group (b = -0.38, p = 0.008) - yes
+## Food Type (b = -0.39, p < 0.001) - yes!
+## Group x Food Type (b = -0.20, p = 0.020) - yes!
+## Group x Affect x Food Type (b = -0.04, p = 0.504) - no
 
 # Summarise data
 sim_summary_m0 = DataSim_m0 %>%
@@ -924,7 +858,7 @@ anova(art_model_mrt_m0)
 # source: Main effect
 
 anova(art_model_mch_m1)
-# source: Main effect, Group and foodType
+# source: marginal main effect
 anova(art_model_mrt_m1)
 # ns
 
@@ -934,7 +868,7 @@ anova(art_model_mrt_m2)
 # ns
 
 anova(art_model_mch_m3)
-# source: Main effect
+# source: Marginal Main effect
 anova(art_model_mrt_m3)
 # ns
 
@@ -993,3 +927,245 @@ dat_summary_m3 %>%
        color = "Data type",
        fill = "Data type")
 
+# Quantile - Probabiltiy Plots
+#Model 0
+sim_summary_m0 = DataSim_m0 %>%
+  group_by(idx,Dx,cond,foodType) %>%
+  summarise(mch = mean(choice),
+            mrt = median(rt)) %>%
+  mutate(type = "sim")
+sim_summary_m0_quantiles = DataSim_m0 %>%
+  group_by(idx,Dx,cond,foodType,choice) %>%
+  summarise(mQ1 = quantile(rt, probs = .1),
+            mQ3 = quantile(rt, probs=.3),
+            mQ5 = quantile(rt, probs=.5),
+            mQ7 = quantile(rt, probs=.7),
+            mQ9 = quantile(rt, probs = .9)) %>%
+  mutate(type = "sim")
+sim_summary_m0 = merge(sim_summary_m0,sim_summary_m0_quantiles) %>%
+  mutate(mch = ifelse(choice == 0, 1 - mch, mch))
+
+# Model 1
+sim_summary_m1 = DataSim_m1 %>%
+  group_by(idx,Dx,cond,foodType) %>%
+  summarise(mch = mean(choice),
+            mrt = median(rt)) %>%
+  mutate(type = "sim")
+sim_summary_m1_quantiles = DataSim_m1 %>%
+  group_by(idx,Dx,cond,foodType,choice) %>%
+  summarise(mQ1 = quantile(rt, probs = .1),
+            mQ3 = quantile(rt, probs=.3),
+            mQ5 = quantile(rt, probs=.5),
+            mQ7 = quantile(rt, probs=.7),
+            mQ9 = quantile(rt, probs = .9)) %>%
+  mutate(type = "sim")
+sim_summary_m1 = merge(sim_summary_m1,sim_summary_m1_quantiles) %>%
+  mutate(mch = ifelse(choice == 0, 1 - mch, mch))
+
+# Model 2
+sim_summary_m2 = DataSim_m2 %>%
+  group_by(idx,Dx,cond,foodType) %>%
+  summarise(mch = mean(choice),
+            mrt = median(rt)) %>%
+  mutate(type = "sim")
+sim_summary_m2_quantiles = DataSim_m2 %>%
+  group_by(idx,Dx,cond,foodType,choice) %>%
+  summarise(mQ1 = quantile(rt, probs = .1),
+            mQ3 = quantile(rt, probs=.3),
+            mQ5 = quantile(rt, probs=.5),
+            mQ7 = quantile(rt, probs=.7),
+            mQ9 = quantile(rt, probs = .9)) %>%
+  mutate(type = "sim")
+sim_summary_m2 = merge(sim_summary_m2,sim_summary_m2_quantiles) %>%
+  mutate(mch = ifelse(choice == 0, 1 - mch, mch))
+
+# Model 3
+sim_summary_m3 = DataSim_m3 %>%
+  group_by(idx,Dx,cond,foodType) %>%
+  summarise(mch = mean(choice),
+            mrt = median(rt)) %>%
+  mutate(type = "sim")
+sim_summary_m3_quantiles = DataSim_m3 %>%
+  group_by(idx,Dx,cond,foodType,choice) %>%
+  summarise(mQ1 = quantile(rt, probs = .1),
+            mQ3 = quantile(rt, probs=.3),
+            mQ5 = quantile(rt, probs=.5),
+            mQ7 = quantile(rt, probs=.7),
+            mQ9 = quantile(rt, probs = .9)) %>%
+  mutate(type = "sim")
+sim_summary_m3 = merge(sim_summary_m3,sim_summary_m3_quantiles) %>%
+  mutate(mch = ifelse(choice == 0, 1 - mch, mch))
+
+# Empirical
+emp_summary = Data %>%
+  group_by(idx,Dx,cond,foodType) %>%
+  summarise(mch = mean(choice),
+            mrt = median(rt)) %>%
+  mutate(type = "emp")
+emp_summary_quantiles = Data %>%
+  group_by(idx,Dx,cond,foodType,choice) %>%
+  summarise(mQ1 = quantile(rt, probs = .1),
+            mQ3 = quantile(rt, probs=.3),
+            mQ5 = quantile(rt, probs=.5),
+            mQ7 = quantile(rt, probs=.7),
+            mQ9 = quantile(rt, probs = .9)) %>%
+  mutate(type = "emp")
+emp_summary = merge(emp_summary,emp_summary_quantiles) %>%
+  mutate(mch = ifelse(choice == 0, 1 - mch, mch))
+
+# Merge simulations with empirical data
+dat_summary_m0 = rbind(sim_summary_m0, emp_summary) %>%
+  mutate(foodType = factor(foodType, levels = c("Low Fat","High Fat")),
+        cond = factor(cond, levels = c("Neutral","Negative")),
+         Dx = factor(Dx, levels = c("HC","BN","BED")),
+         source = factor(type,levels=c("emp","sim"))
+  )
+dat_summary_m4 = rbind(sim_summary_m4, emp_summary) %>%
+  mutate(foodType = factor(foodType, levels = c("Low Fat","High Fat")),
+          cond = factor(cond, levels = c("Neutral","Negative")),
+         Dx = factor(Dx, levels = c("HC","BN","BED")),
+         source = factor(type,levels=c("emp","sim"))
+  )
+dat_summary_m1 = rbind(sim_summary_m1, emp_summary) %>%
+  mutate(foodType = factor(foodType, levels = c("Low Fat","High Fat")),
+          cond = factor(cond, levels = c("Neutral","Negative")),
+
+         Dx = factor(Dx, levels = c("HC","BN","BED")),
+         source = factor(type,levels=c("emp","sim"))
+  )
+dat_summary_m2 = rbind(sim_summary_m2, emp_summary) %>%
+  mutate(foodType = factor(foodType, levels = c("Low Fat","High Fat")),
+         cond = factor(cond, levels = c("Neutral","Negative")),
+         Dx = factor(Dx, levels = c("HC","BN","BED")),
+         source = factor(type,levels=c("emp","sim"))
+  )
+dat_summary_m3 = rbind(sim_summary_m3, emp_summary) %>%
+  mutate(foodType = factor(foodType, levels = c("Low Fat","High Fat")),
+         cond = factor(cond, levels = c("Neutral","Negative")),
+         Dx = factor(Dx, levels = c("HC","BN","BED")),
+         source = factor(type,levels=c("emp","sim"))
+  )
+
+dat_summary_m0 %>%
+  mutate(source = ifelse(source == "emp", "Empirical","Simulation")) %>%
+  group_by(Dx,cond, foodType, source, choice) %>%
+  summarise(c = mean(mch),
+            Q1 = mean(mQ1),
+            Q3 = mean(mQ3),
+            Q5 = mean(mQ5),
+            Q7 = mean(mQ7),
+            Q9 = mean(mQ9)
+  ) %>%
+  ggplot()+
+  theme_pubr(base_size=18)+
+  facet_grid(cond~Dx)+
+  geom_point(aes(x = c, y = Q1, group = interaction(cond,foodType), shape = source), color = "magenta")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q1), color = "magenta")+
+  geom_point(aes(x = c, y = Q3, group = interaction(cond,foodType), shape = source), color = "blue")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q3), color = "blue")+
+  geom_point(aes(x = c, y = Q5, group = interaction(cond,foodType), shape = source), color = "forestgreen")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q5), color = "forestgreen")+
+  geom_point(aes(x = c, y = Q7, group = interaction(cond,foodType), shape = source), color = "gold")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q7), color = "gold")+
+  geom_point(aes(x = c, y = Q9, group = interaction(cond,foodType), shape = source), color = "darkred")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q9), color = "darkred")+
+  labs(x = "Choice Frequency", y = "Response Time [sec]", title = "Model 0", shape = "Data Type") +
+  scale_shape_manual(values = c(0,4))
+
+dat_summary_m1 %>%
+  mutate(source = ifelse(source == "emp", "Empirical","Simulation")) %>%
+  group_by(Dx,cond, foodType, source, choice) %>%
+    summarise(c = mean(mch),
+              Q1 = mean(mQ1),
+              Q3 = mean(mQ3),
+              Q5 = mean(mQ5),
+              Q7 = mean(mQ7),
+              Q9 = mean(mQ9)
+              ) %>%
+  ggplot()+
+  theme_pubr(base_size=18)+
+  facet_grid(cond~Dx)+
+  geom_point(aes(x = c, y = Q1, group = interaction(cond,foodType), shape = source), color = "magenta")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q1), color = "magenta")+
+  geom_point(aes(x = c, y = Q3, group = interaction(cond,foodType), shape = source), color = "blue")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q3), color = "blue")+
+  geom_point(aes(x = c, y = Q5, group = interaction(cond,foodType), shape = source), color = "forestgreen")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q5), color = "forestgreen")+
+  geom_point(aes(x = c, y = Q7, group = interaction(cond,foodType), shape = source), color = "gold")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q7), color = "gold")+
+  geom_point(aes(x = c, y = Q9, group = interaction(cond,foodType), shape = source), color = "darkred")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q9), color = "darkred")+
+  labs(x = "Choice Frequency", y = "Response Time [sec]", title = "Model 1", shape = "Data Type") +
+  scale_shape_manual(values = c(0,4))
+  
+dat_summary_m2 %>%
+  mutate(source = ifelse(source == "emp", "Empirical","Simulation")) %>%
+  group_by(Dx,cond, foodType, source, choice) %>%
+  summarise(c = mean(mch),
+            Q1 = mean(mQ1),
+            Q3 = mean(mQ3),
+            Q5 = mean(mQ5),
+            Q7 = mean(mQ7),
+            Q9 = mean(mQ9)
+  ) %>%
+  ggplot()+
+  theme_pubr(base_size=18)+
+  facet_grid(cond~Dx)+
+  geom_point(aes(x = c, y = Q1, group = interaction(cond,foodType), shape = source), color = "magenta")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q1), color = "magenta")+
+  geom_point(aes(x = c, y = Q3, group = interaction(cond,foodType), shape = source), color = "blue")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q3), color = "blue")+
+  geom_point(aes(x = c, y = Q5, group = interaction(cond,foodType), shape = source), color = "forestgreen")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q5), color = "forestgreen")+
+  geom_point(aes(x = c, y = Q7, group = interaction(cond,foodType), shape = source), color = "gold")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q7), color = "gold")+
+  geom_point(aes(x = c, y = Q9, group = interaction(cond,foodType), shape = source), color = "darkred")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q9), color = "darkred")+
+  labs(x = "Choice Frequency", y = "Response Time [sec]", title = "Model 2", shape = "Data Type") +
+  scale_shape_manual(values = c(0,4))
+  
+dat_summary_m3 %>%
+  mutate(source = ifelse(source == "emp", "Empirical","Simulation")) %>%
+  group_by(Dx,cond, foodType, source, choice) %>%
+  summarise(c = mean(mch),
+            Q1 = mean(mQ1),
+            Q3 = mean(mQ3),
+            Q5 = mean(mQ5),
+            Q7 = mean(mQ7),
+            Q9 = mean(mQ9)
+  ) %>%
+  ggplot()+
+  theme_pubr(base_size=18)+
+  facet_grid(cond~Dx)+
+  geom_point(aes(x = c, y = Q1, group = interaction(cond,foodType), shape = source), color = "magenta")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q1), color = "magenta")+
+  geom_point(aes(x = c, y = Q3, group = interaction(cond,foodType), shape = source), color = "blue")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q3), color = "blue")+
+  geom_point(aes(x = c, y = Q5, group = interaction(cond,foodType), shape = source), color = "forestgreen")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q5), color = "forestgreen")+
+  geom_point(aes(x = c, y = Q7, group = interaction(cond,foodType), shape = source), color = "gold")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q7), color = "gold")+
+  geom_point(aes(x = c, y = Q9, group = interaction(cond,foodType), shape = source), color = "darkred")+
+  geom_line(data = . %>% filter(source == "Simulation"), 
+            aes(x = c, y = Q9), color = "darkred")+
+  labs(x = "Choice Frequency", y = "Response Time [sec]", title = "Model 3", shape = "Data Type") +
+  scale_shape_manual(values = c(0,4))

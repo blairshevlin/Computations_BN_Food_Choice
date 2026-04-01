@@ -30,7 +30,7 @@
 # 11/07/25      Blair Shevlin                         Assessing marginal means for affect change analyses
 # 11/13/25      Blair Shevlin                         Correlations between restriction and binge frequency 
 # 01/26/26      Blair Shevlin                         Difference-in-differences analysis for attribute timing
-
+# 03/05/26      Blair Shevlin                         Re-analysis of model parameters with better covariance structure
 
 # Packages required
 required_packages <- c(
@@ -52,7 +52,8 @@ required_packages <- c(
   "lsmeans",
   "glmmTMB",
   "nlme",
-  "performance")
+  "performance",
+  "gt")
 
 # Check and install missing packages
 install_if_missing <- function(p) {
@@ -86,104 +87,18 @@ contrasts(beh.df$cond) <- c(-1,1)
 contrasts(beh.df$food) <- c(-1,1)
 contrasts(beh.df$Dx) <- c(-1,1)
 
-beh.df %>% ggplot(aes(x = hd, y= choice, color = Dx, fill = Dx)) + 
-facet_wrap(foodType~cond) +
-theme_pubr(base_size=18) +
-scale_colour_viridis_d(begin = 0,
-                         end = .8,
-                         direction = -1
-                         ) +
-  scale_fill_viridis_d(begin = 0,
-                       end = .8,
-                       direction = -1,
-                       guide="none") +
-  scale_linetype_manual(values = c("solid", "dashed")) +
-geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray", linewidth = 1) +
-geom_point() + 
-geom_smooth(method = "glm", method.args = list(family = "binomial"))+
-labs(x = "Health Rating", y = "Choice Proportion\n(over reference item)")
-
-beh.df %>% ggplot(aes(x = td, y= choice, color = Dx, fill = Dx)) + 
-facet_wrap(foodType~cond) +
-theme_pubr(base_size=18) +
-scale_colour_viridis_d(begin = 0,
-                         end = .8,
-                         direction = -1
-                         ) +
-  scale_fill_viridis_d(begin = 0,
-                       end = .8,
-                       direction = -1,
-                       guide="none") +
-  scale_linetype_manual(values = c("solid", "dashed")) +
-geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray", linewidth = 1) +
-geom_point() + 
-geom_smooth(method = "glm", method.args = list(family = "binomial"))+
-labs(x = "Taste Rating", y = "Choice Proportion\n(over reference item)")
-
-beh.df %>% 
-mutate(choice = ifelse(choice == 1, "Presented item", "Reference item")) %>%
-ggplot(aes(x = hd, y= rt, color = Dx, fill = Dx)) + 
-facet_wrap(foodType~cond) +
-theme_pubr(base_size=18) +
-scale_colour_viridis_d(begin = 0,
-                         end = .8,
-                         direction = -1
-                         ) +
-  scale_fill_viridis_d(begin = 0,
-                       end = .8,
-                       direction = -1,
-                       guide="none") +
-  scale_linetype_manual(values = c("solid", "dashed")) +
-geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray", linewidth = 1) +
-geom_point(aes(shape = choice)) + 
-geom_smooth(method = "lm", aes(linetype = choice))
-
 # Model 1: choice ~ food_type x affect x group with MAXIMAL random effects structure
-glm.1.original <- glmer(data = beh.df,
+glm.1 <- glmer(data = beh.df,
                formula = choice ~
                  Dx * cond * food +
                  (1 + cond * food | idx),
                family=binomial,
                control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(glm.1.original)
-
-# Model 1 with random effects structure based only on condition
-glm.1.baseline <- glmer(data = beh.df,
-               formula = choice ~
-                 Dx * cond * food +
-                (1 | idx) +        # Participant baseline
-                (1 | idx:cond),  # Session within participant
-               family=binomial,
-               control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(glm.1.baseline)
-
-# Model 1 with correlated food slope and intercept
-glm.1.selected <- glmer(data = beh.df,
-               formula = choice ~
-                 Dx * cond * food +
-                (1 + food | idx) +    # Intercept + food slope
-                (1 | idx:cond),       # Session within participant
-               family=binomial,
-               control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(glm.1.selected)
-
-# Model selection
-anova(glm.1.baseline, glm.1.selected, glm.1.original)
-# Best model is glm.1.selected
-
+summary(glm.1)
 # Table S.9 for supplements
 
-# Marginal Means
-lsmeans(glm.1.selected, specs = ~ Dx , type = "response")
-### Note --- subtract 1 from these probs to get reference item selection
-lsmeans(glm.1.selected, specs = ~ Dx * food , type = "response")
-lsmeans(glm.1.selected, specs = ~ Dx * food * cond, type = "response")
-
-emm <- emmeans(glm.1.selected, ~ Dx | food * cond)
-pairs(emm)
-
 # Model 2: affect x group + group x health + group x taste (MAXIMAL random effects structure)
-glm.2.original <- glmer(data = beh.df,
+glm.2 <- glmer(data = beh.df,
                formula = choice ~ Dx * cond +
                  taste_z + health_z + 
                  taste_z * Dx  + health_z * Dx  +
@@ -193,25 +108,7 @@ glm.2.original <- glmer(data = beh.df,
                  (1 + taste_z * cond + health_z * cond| idx),
                family=binomial,
                control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(glm.2.original)
-
-glm.2.selected <- glmer(data = beh.df,
-               formula = choice ~ Dx * cond +
-                 taste_z + health_z + 
-                 taste_z * Dx  + health_z * Dx  +
-                 taste_z * cond  + health_z * cond  +
-                 taste_z * Dx * cond + 
-                 health_z * Dx * cond +
-                 (1 + taste_z + health_z | idx) +
-                 (1 | idx:cond),    
-               family=binomial,
-               control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(glm.2.selected)
-
-# But here the original is better!
-anova(glm.2.selected, glm.2.original)
-
-
+summary(glm.2)
 # Table S10 for supplements
 
 # Model 3: Self-control trials
@@ -227,33 +124,13 @@ data.sc <- beh.df %>%
   filter(item_type %in% c("Liked Unhealthy", "Disliked Healthy")) %>%
   mutate(sc = ifelse( (item_type == "Liked Unhealthy" & choice == 0) | (item_type == "Disliked Healthy" & choice == 1) ,1,0))
 
-glm.3.original <- glmer(data = data.sc,
+glm.3 <- glmer(data = data.sc,
                formula = sc ~
                  Dx * cond +
                (1 + cond|idx),
                family=binomial,
                control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(glm.3.original)
-
-glm.3.selected <- glmer(data = data.sc,
-               formula = sc ~
-                 Dx * cond +
-               (1 |idx:cond),
-               family=binomial,
-               control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(glm.3.selected)
-
-glm.3.enhanced <- glmer(data = data.sc,
-               formula = sc ~
-                 Dx * cond +
-               (1 + cond|idx) +
-               (1 |idx:cond),
-               family=binomial,
-               control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(glm.3.enhanced)
-
-anova(glm.3.original, glm.3.selected, glm.3.enhanced)
-# Original wins here
+summary(glm.3)
 
 # Supplementary Table S11
 
@@ -261,43 +138,15 @@ anova(glm.3.original, glm.3.selected, glm.3.enhanced)
 beh.df$choice_c = factor(beh.df$choice, levels = c(0,1), labels = c("Reference item","Presented item"))
 contrasts(beh.df$choice_c) <- c(-1,1)
 
-lm.1.original <- lmer(data = beh.df,
+lm.1 <- lmer(data = beh.df,
                formula = log(rt) ~   Dx * cond * food * choice_c +
                  (1 + cond * food | idx),
                REML = F,
                control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(lm.1.original)
-lm.1.no_session <- lmer(log(rt) ~ Dx * cond * food * choice_c +
-                          (1 + food + choice_c | idx),
-                        data = beh.df, REML = FALSE,
-                        control = lmerControl(optimizer = "bobyqa",
-                                             optCtrl = list(maxfun = 20000)))
-lm.1.baseline <- lmer(data = beh.df,
-               formula = log(rt) ~   Dx * cond * food * choice_c +
-                (1 | idx) +        
-                (1 | idx:cond), 
-               REML = F,
-               control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(lm.1.baseline)
-lm.1.selected <- lmer(data = beh.df,
-               formula = log(rt) ~   Dx * cond * food * choice_c +
-                (1 + food+choice_c| idx) +  
-                (1 | idx:cond), 
-               REML = F,
-               control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(lm.1.selected)
-lm.1.maximal <- lmer(data = beh.df,
-                     formula = log(rt) ~ Dx * cond * food * choice_c +
-                       (1 + food+choice_c+cond| idx) +
-                       (1 | idx:cond),
-                     REML = FALSE,
-                     control = lmerControl(optimizer = "bobyqa",
-                                          optCtrl = list(maxfun = 20000))) # doesn't converge
+summary(lm.1)
 # Supplementary Table S12
-anova(lm.1.baseline, lm.1.no_session,lm.1.selected, lm.1.original,lm.1.maximal)
 
 # Panels for Figure 2
-glm.1  = glm.1.original
 choice.pred <- ggpredict(glm.1,terms = c("Dx","cond","food"))
 
 fig2a <- 
@@ -380,7 +229,6 @@ ggsave(file = figPath / "figure2_final.tiff", plot = figure2, width = 12, height
 
 # Load subject-level parameters
 df.fit.full <- NULL
-
 for (cc in c("Neutral","Negative")) {
   for (gg in c("BN","HC")) {
     if (gg == "BN" & cc == "Negative"){
@@ -400,7 +248,6 @@ for (cc in c("Neutral","Negative")) {
       df.fit$wh_hf = mean(chain[,c( paste( c("b2.p[",toString(s),",2]"), collapse = ""))])
       df.fit$boundary = mean(chain[,c( paste( c("alpha.p[",toString(s),"]"), collapse = ""))])
       df.fit$nDT= mean(chain[,c( paste( c("theta.p[",toString(s),"]"), collapse = ""))])
-
       df.fit$tHin_lf = mean(chain[,c( paste( c("time.p[",toString(s),",1]"), collapse = ""))])
       df.fit$tHin_hf = mean(chain[,c( paste( c("time.p[",toString(s),",2]"), collapse = ""))])
       df.fit$bias = mean(chain[,c( paste( c("bias[",toString(s),"]"), collapse = ""))])
@@ -434,9 +281,9 @@ params <- df.fit.full %>%
   )
 
 params %>% 
-group_by(Dx, cond, foodType, params) %>% 
-summarise(m = mean(vals), s = se(vals)) %>%
-as.data.frame()
+  group_by(Dx, cond, foodType, params) %>% 
+  summarise(m = mean(vals), s = se(vals)) %>%
+  as.data.frame()
 
 # Attribute timing
 tHin.df <- params %>%
@@ -446,87 +293,20 @@ tHin.df <- params %>%
                             labels = c("Low-Fat","High-Fat")),
           cond = factor(cond,levels=c("Neutral","Negative")),
           Dx = factor(Dx,levels=c("HC","BN"),labels=c("Healthy Controls",
-                                                      "Bulimia Nervosa")))                                                   
-tHin.lm <- lmer (data=tHin.df,
-                 formula = vals ~ Dx * cond * foodType + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(tHin.lm) 
+                                                      "Bulimia Nervosa")))
+                                                                                                         
+tHin.df %>%
+  group_by(foodType, cond, Dx) %>%
+  summarise(m = mean(vals), s = se(vals))
+# Updated model with better covariance structure
+tHin.lme <- lme(vals ~ Dx * cond * foodType,
+                random = ~ 1 | idx,
+                correlation = corSymm(form = ~ 1 | idx),  # Unstructured
+                weights = varIdent(form = ~ 1 | cond * foodType),  # Heterogeneous variances
+                data = tHin.df,
+                method = "ML")
+summary(tHin.lme)
 # Supplementary Table S2
-
-tHin.lm.ne <- lmer (data=tHin.df[tHin.df$cond == "Neutral",],
-                 formula = vals ~ foodType + Dx + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(tHin.lm.ne) 
-
-tHin.lm.na <- lmer (data=tHin.df[tHin.df$cond == "Negative",],
-                 formula = vals ~ foodType + Dx + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(tHin.lm.na) 
-
-tHin.lm.noft <- lmer (data=tHin.df,
-                 formula = vals ~ Dx * cond + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(tHin.lm.noft) 
-
-tHin.lm.twoways <- lmer (data=tHin.df,
-                 formula = vals ~ foodType * cond + Dx * cond + (1|idx),
-                 REML=F,
-                 control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(tHin.lm.twoways) 
-
-# 1. Simple effects analysis - Group differences within each condition/food type combination
-emmeans(tHin.lm, pairwise ~ Dx | cond * foodType)
-emmeans(tHin.lm, pairwise ~ Dx | cond)
-
-
-# 2. Simple slopes - How each group changes from neutral to negative within each food type
-emmeans(tHin.lm, pairwise ~ cond | Dx * foodType)
-
-# 3. Difference in differences - How the Group x Food_Type interaction changes across affect conditions
-emmeans(tHin.lm, pairwise ~ foodType | Dx * cond)
-
-# 4. Three-way interaction contrasts
-emmeans(tHin.lm, pairwise ~ Dx * cond * foodType)
-
-# For Group by Food Type interaction for each condition
-emm_ft_cond <- emmeans(tHin.lm, ~ Dx * foodType | cond)
-pairs(emm_ft_cond, by = "Dx", adjust ="none")        # Looking at food type effect for each group in Neutral
-# Confirmed that the difference between LF-HF in Neutral condition is significant for BN but not HC group
-
-emm_dx_cond <- emmeans(tHin.lm, ~ Dx * cond | foodType)
-pairs(emm_dx_cond, by = "foodType", adjust ="none")    
-
-emm_dx_cond.collapse = emmeans(tHin.lm, ~ Dx * cond)
-pairs(emm_dx_cond.collapse, adjust ="none")   
-
-
-# Analyze the effect separately for each food type
-emm_by_foodtype <- emmeans(tHin.lm, ~ Dx * cond | foodType)
-
-foodType_contrasts <- contrast(emm_by_foodtype, 
-                              interaction = "pairwise", 
-                              by = "foodType")
-print(foodType_contrasts)
-  # Showing the difference between HC and BN across conditions occured for LF but not HF foods
-# Supplementary Table S3
-
-# Effect of condition in each group (collapsing food type)
-emmeans(tHin.lm,  pairwise ~ cond * Dx )
-emm <- emmeans(tHin.lm, ~ Dx * cond)
-
-# Define the difference-in-differences contrast
-# (Dx1 conda - Dx1 condab) - (Dx2 conda - Dx2 condab)
-contrast_list <- list(
-  "DinD" = c(1, -1, -1, 1)  # Assuming factor level order: Dx1:conda, Dx1:condab, Dx2:conda, Dx2:condab
-)
-
-# Test the contrast
-contrast_result <- contrast(emm, contrast_list)
-summary(contrast_result)
 
 # Simplified Difference-in-Differences model for attribute timing (tHin)
 tHin.wide <- tHin.df %>%
@@ -550,59 +330,81 @@ tHin.wide <- tHin.df %>%
     diff_in_diff = FT_effect_Negative - FT_effect_Neutral
   )
 
-# Look at avge effects by group
-tHin.wide %>%
-group_by(Dx) %>%
-  summarise(Neg_LF = mean(Neg_LF),Neg_HF = mean(Neg_HF),
-             Neu_LF = mean(Neu_LF),Neu_HF = mean(Neu_HF), 
-            Cond_effect_LF = mean(Cond_effect_LF),
-            Cond_effect_HF = mean(Cond_effect_HF),
-            diff_in_diff_mean = mean(diff_in_diff)
-            )
-#
+summary_stats_tHin = tHin.wide %>%
+  group_by(Dx) %>%
+  summarise(
+    FT_Neutral_mean = mean(FT_effect_Neutral),
+    FT_Neutral_sd   = sd(FT_effect_Neutral),
+    FT_Negative_mean = mean(FT_effect_Negative),
+    FT_Negative_sd   = sd(FT_effect_Negative),
+    Cond_LF_mean = mean(Cond_effect_LF),
+    Cond_LF_sd   = sd(Cond_effect_LF),
+    Cond_HF_mean = mean(Cond_effect_HF),
+    Cond_HF_sd   = sd(Cond_effect_HF),
+    DiD_mean = mean(diff_in_diff),
+    DiD_sd   = sd(diff_in_diff)
+  )
 
-# Check normality of diff_in_diff
-by(tHin.wide$diff_in_diff, tHin.wide$Dx, shapiro.test) # Shapiro-Wilk test for each group
+# Run Wilcoxon tests
+w_FT_Neutral  <- wilcox.test(FT_effect_Neutral ~ Dx, data = tHin.wide)
+w_FT_Negative <- wilcox.test(FT_effect_Negative ~ Dx, data = tHin.wide)
+w_Cond_LF     <- wilcox.test(Cond_effect_LF ~ Dx, data = tHin.wide)
+w_Cond_HF     <- wilcox.test(Cond_effect_HF ~ Dx, data = tHin.wide)
+w_DiD         <- wilcox.test(diff_in_diff ~ Dx, data = tHin.wide)
 
-# P > 0.05, so can test the 3-way interaction using t-test
-wilcox.test(diff_in_diff ~ Dx, data = tHin.wide) # Yes, significant
+# Helper to format mean (SD)
+fmt <- function(m, s) sprintf("%.2f (%.2f)", m, s)
 
-# Two-way effect of Condition within each food type
-wilcox.test(Cond_effect_LF ~ Dx, data = tHin.wide) # Yes, significant
-wilcox.test(Cond_effect_HF ~ Dx, data = tHin.wide) # Not significant
+# Build table dataframe
+hc_tHin <- summary_stats_tHin %>% filter(Dx == "Healthy Controls")
+bn_tHin <- summary_stats_tHin %>% filter(Dx == "Bulimia Nervosa")
 
-# Two-way effect of Foodtype within each condition
-wilcox.test(FT_effect_Neutral ~ Dx, data = tHin.wide) # Yes, significant
-wilcox.test(FT_effect_Negative ~ Dx, data = tHin.wide) # Not significant
+tHin_table_df <- tibble(
+  Contrast = c(
+    "Food-type effect in Neutral condition",
+    "Food-type effect in Negative condition",
+    "Condition effect for Low-Fat foods",
+    "Condition effect for High-Fat foods",
+    "Difference-in-differences"
+  ),
+  Section = c(
+    "Group difference in food-type bias within condition",
+    "Group difference in food-type bias within condition",
+    "Group difference in condition effect within food type",
+    "Group difference in condition effect within food type",
+    "Overall"
+  ),
+  HC = c(
+    fmt(hc_tHin$FT_Neutral_mean,  hc_tHin$FT_Neutral_sd),
+    fmt(hc_tHin$FT_Negative_mean, hc_tHin$FT_Negative_sd),
+    fmt(hc_tHin$Cond_LF_mean,     hc_tHin$Cond_LF_sd),
+    fmt(hc_tHin$Cond_HF_mean,     hc_tHin$Cond_HF_sd),
+    fmt(hc_tHin$DiD_mean,         hc_tHin$DiD_sd)
+  ),
+  BN = c(
+    fmt(bn_tHin$FT_Neutral_mean,  bn_tHin$FT_Neutral_sd),
+    fmt(bn_tHin$FT_Negative_mean, bn_tHin$FT_Negative_sd),
+    fmt(bn_tHin$Cond_LF_mean,     bn_tHin$Cond_LF_sd),
+    fmt(bn_tHin$Cond_HF_mean,     bn_tHin$Cond_HF_sd),
+    fmt(bn_tHin$DiD_mean,         bn_tHin$DiD_sd)
+  ),
+  W = c(
+    w_FT_Neutral$statistic,
+    w_FT_Negative$statistic,
+    w_Cond_LF$statistic,
+    w_Cond_HF$statistic,
+    w_DiD$statistic
+  ),
+  p = c(
+    w_FT_Neutral$p.value,
+    w_FT_Negative$p.value,
+    w_Cond_LF$p.value,
+    w_Cond_HF$p.value,
+    w_DiD$p.value
+  )
+) %>%
+  mutate(p = ifelse(p < .001, "<.001", sprintf("%.3f", p)))
 
-# Better covariance structure
-
-# Check to see each idx does diff residual variance
-lmmFits_foodType <- plyr::ddply(tHin.df, c("foodType"),
-                       function(df){ fit <- lme(vals ~ Dx * cond, 
-                                    random = ~ 1 | idx,
-                                    data = df,
-                                    method = "ML")
-                         data.frame(sigma_squared = summary(fit)$sigma^2)})
-lmmFits_cond <- plyr::ddply(tHin.df, c("cond"),
-                      function(df){ fit <- lme(vals ~ Dx * foodType, 
-                                    random = ~ 1 | idx,
-                                    data = df,
-                                    method = "ML")
-                         data.frame(sigma_squared = summary(fit)$sigma^2)})                        
-lmmFits_foodType # very similar residual variances across food types
-lmmFits_cond # different variance from Neutral to Negative
-
-# For what corSymm does:  https://stats.stackexchange.com/questions/213719/r-default-correlation-in-nlmelme
-# For what varIdent does: https://jepusto.com/posts/varIdent-function-in-nlme/ and https://www.r-bloggers.com/2019/09/fitting-complex-mixed-models-with-nlme-example-2/
-
-tHin.lme <- lme(vals ~ Dx * cond * foodType,
-                random = ~ 1 | idx,
-                correlation = corSymm(form = ~ 1 | idx),  # Unstructured
-                weights = varIdent(form = ~ 1 | cond * foodType),  # Heterogeneous variances
-                data = tHin.df,
-                method = "ML")
-summary(tHin.lme) # All effects remain significant!
 
 # Get all the simple effects
 emm_all <- emmeans(tHin.lme, ~ Dx * cond * foodType)
@@ -614,15 +416,6 @@ interaction_by_cond <- contrast(emm_by_cond, interaction = "pairwise", by = "con
 # Test 2-way interactions within each food-type
 emm_by_foodtype <- emmeans(tHin.lme, ~ Dx * cond | foodType)
 interaction_by_foodtype <- contrast(emm_by_foodtype, interaction = "pairwise", by = "foodType")
-### This is what we are looking for!
-emm_by_foodtype <- emmeans(tHin.lme, ~ Dx * cond)
-
-# Simple effects within each condition
-# Food type effect within each Dx group, by condition
-foodtype_by_dx_cond <- emmeans(tHin.lme, pairwise ~ foodType | Dx * cond)
-
-# Group differences within each food type and condition
-dx_by_foodtype_cond <- emmeans(tHin.lme, pairwise ~ Dx | foodType * cond) 
 
 # Get the estimates to show the pattern
 means_table <- as.data.frame(emm_all) %>%
@@ -641,29 +434,172 @@ taste.df <- params %>%
           cond = factor(cond,levels=c("Neutral","Negative")),
           Dx = factor(Dx,levels=c("HC","BN"),labels=c("Healthy Controls",
                                                       "Bulimia Nervosa")))
-taste.lm1 <- lmer (data=taste.df,
-               formula = vals ~ Dx * cond * foodType+ (1|idx),
-               REML=F,
-               control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(taste.lm1)
-# Supplementary Table S4
+taste.lme <- lme(vals ~ Dx * cond * foodType,
+                random = ~ 1 | idx,
+                correlation = corSymm(form = ~ 1 | idx),  # Unstructured
+                weights = varIdent(form = ~ 1 | cond * foodType),  # Heterogeneous variances
+                data = taste.df,
+                method = "ML")
+summary(taste.lme)
 
-# Simple effects
-emm_taste_group <- emmeans(taste.lm1, ~ Dx | cond)
-emm_taste_group_cont = pairs(emm_taste_group)  %>% as.data.frame() # Group differences for each condition
-emm_taste_group_cont
-emm_taste_group_cont$p.value
 
-emm_taste_cond <- emmeans(taste.lm1, ~ cond | Dx)
-emm_taste_cond_cont = pairs(emm_taste_cond)
-emm_taste_cond_cont
+# Simplified Difference-in-Differences model for attribute timing (tHin)
+taste.wide <- taste.df %>%
+  pivot_wider(names_from = c(cond, foodType), values_from = vals) %>%
+  rename(
+    Neu_LF = `Neutral_Low-Fat`,
+    Neu_HF = `Neutral_High-Fat`,
+    Neg_LF = `Negative_Low-Fat`,
+    Neg_HF = `Negative_High-Fat`
+  ) %>%
+  mutate(
+    # Effect of food type in Neutral
+    FT_effect_Neutral = Neu_HF - Neu_LF,
+    # Effect of food type in Negative
+    FT_effect_Negative = Neg_HF - Neg_LF,
+    # Effect of condition in Low-Fat
+    Cond_effect_LF = Neg_LF - Neu_LF,
+    # Effect of condition in High-Fat
+    Cond_effect_HF = Neg_HF - Neu_HF,
+    # How food type effect changes with affect
+    diff_in_diff = FT_effect_Negative - FT_effect_Neutral
+  )
 
-emm_taste_ft <- emmeans(taste.lm1, ~ foodType | Dx)
-emm_taste_group_food_cont = pairs(emm_taste_ft) %>% as.data.frame()
-emm_taste_group_food_cont
-emm_taste_group_food_cont$p.value
+summary_stats_taste = taste.wide %>%
+  group_by(Dx) %>%
+  summarise(
+    FT_Neutral_mean = mean(FT_effect_Neutral),
+    FT_Neutral_sd   = sd(FT_effect_Neutral),
+    FT_Negative_mean = mean(FT_effect_Negative),
+    FT_Negative_sd   = sd(FT_effect_Negative),
+    Cond_LF_mean = mean(Cond_effect_LF),
+    Cond_LF_sd   = sd(Cond_effect_LF),
+    Cond_HF_mean = mean(Cond_effect_HF),
+    Cond_HF_sd   = sd(Cond_effect_HF),
+    DiD_mean = mean(diff_in_diff),
+    DiD_sd   = sd(diff_in_diff)
+  )
 
+  summary_stats_taste %>% as.data.frame()
+
+taste.group.ft <- taste.df %>%
+  pivot_wider(names_from = c(Dx, foodType), values_from = vals) %>%
+  rename(
+    HC_HF = `Healthy Controls_High-Fat`,
+    HC_LF = `Healthy Controls_Low-Fat`,
+    BN_HF = `Bulimia Nervosa_High-Fat`,
+    BN_LF = `Bulimia Nervosa_Low-Fat`
+  ) %>%
+  mutate(
+    FT_effect_HC = HC_HF - HC_LF,
+    FT_effect_BN = BN_HF - BN_LF,
+    # How food type effect changes with affect
+    diff_in_diff = FT_effect_BN - FT_effect_HC
+  )
+
+# Run Wilcoxon tests
+w_FT_Neutral  <- wilcox.test(FT_effect_Neutral ~ Dx, data = taste.wide)
+w_FT_Negative <- wilcox.test(FT_effect_Negative ~ Dx, data = taste.wide)
+w_Cond_LF     <- wilcox.test(Cond_effect_LF ~ Dx, data = taste.wide)
+w_Cond_HF     <- wilcox.test(Cond_effect_HF ~ Dx, data = taste.wide)
+w_DiD         <- wilcox.test(diff_in_diff ~ Dx, data = taste.wide)
+
+# One-sample tests to see if effects are significantly different from zero within each group
+w_FT_HC <- wilcox.test(taste.group.ft$FT_effect_HC[!is.na(taste.group.ft$FT_effect_HC)], mu = 0)
+w_FT_BN <- wilcox.test(taste.group.ft$FT_effect_BN[!is.na(taste.group.ft$FT_effect_BN)], mu = 0)
+
+# One-sample tests: is the condition effect significantly different from zero within each group?
+
+# Low-Fat
+w_Cond_LF_HC <- wilcox.test(taste.wide$Cond_effect_LF[taste.wide$Dx == "Healthy Controls"], mu = 0)
+w_Cond_LF_BN <- wilcox.test(taste.wide$Cond_effect_LF[taste.wide$Dx == "Bulimia Nervosa"], mu = 0)
+
+# High-Fat
+w_Cond_HF_HC <- wilcox.test(taste.wide$Cond_effect_HF[taste.wide$Dx == "Healthy Controls"], mu = 0)
+w_Cond_HF_BN <- wilcox.test(taste.wide$Cond_effect_HF[taste.wide$Dx == "Bulimia Nervosa"], mu = 0)
+
+# Overall condition effect collapsed across food types (if you have it)
+w_Cond_HC <- wilcox.test(taste.wide %>% filter(Dx == "Healthy Controls") %>% mutate(Cond_effect = (Cond_effect_LF + Cond_effect_HF)/2) %>% pull(Cond_effect), mu = 0)
+w_Cond_BN <- wilcox.test(taste.wide %>% filter(Dx == "Bulimia Nervosa") %>% mutate(Cond_effect = (Cond_effect_LF + Cond_effect_HF)/2) %>% pull(Cond_effect), mu = 0)
+
+
+# One-sample tests: is the food-type effect different from zero within each group and condition?
+w_FT_Neutral_HC <- wilcox.test(taste.wide$FT_effect_Neutral[taste.wide$Dx == "Healthy Controls"], mu = 0)
+w_FT_Neutral_BN <- wilcox.test(taste.wide$FT_effect_Neutral[taste.wide$Dx == "Bulimia Nervosa"], mu = 0)
+w_FT_Negative_HC <- wilcox.test(taste.wide$FT_effect_Negative[taste.wide$Dx == "Healthy Controls"], mu = 0)
+w_FT_Negative_BN <- wilcox.test(taste.wide$FT_effect_Negative[taste.wide$Dx == "Bulimia Nervosa"], mu = 0)
+
+# Build table dataframe
+hc_taste <- summary_stats_taste %>% filter(Dx == "Healthy Controls")
+bn_taste <- summary_stats_taste %>% filter(Dx == "Bulimia Nervosa")
+
+taste_table_df <- tibble(
+  Contrast = c(
+    "Food-type effect in Neutral condition",
+    "Food-type effect in Negative condition",
+    "Condition effect for Low-Fat foods",
+    "Condition effect for High-Fat foods",
+    "Difference-in-differences"
+  ),
+  Section = c(
+    "Group difference in food-type bias within condition",
+    "Group difference in food-type bias within condition",
+    "Group difference in condition effect within food type",
+    "Group difference in condition effect within food type",
+    "Overall"
+  ),
+  HC = c(
+    fmt(hc_taste$FT_Neutral_mean,  hc_taste$FT_Neutral_sd),
+    fmt(hc_taste$FT_Negative_mean, hc_taste$FT_Negative_sd),
+    fmt(hc_taste$Cond_LF_mean,     hc_taste$Cond_LF_sd),
+    fmt(hc_taste$Cond_HF_mean,     hc_taste$Cond_HF_sd),
+    fmt(hc_taste$DiD_mean,         hc_taste$DiD_sd)
+  ),
+  BN = c(
+    fmt(bn_taste$FT_Neutral_mean,  bn_taste$FT_Neutral_sd),
+    fmt(bn_taste$FT_Negative_mean, bn_taste$FT_Negative_sd),
+    fmt(bn_taste$Cond_LF_mean,     bn_taste$Cond_LF_sd),
+    fmt(bn_taste$Cond_HF_mean,     bn_taste$Cond_HF_sd),
+    fmt(bn_taste$DiD_mean,         bn_taste$DiD_sd)
+  ),
+  W = c(
+    w_FT_Neutral$statistic,
+    w_FT_Negative$statistic,
+    w_Cond_LF$statistic,
+    w_Cond_HF$statistic,
+    w_DiD$statistic
+  ),
+  p = c(
+    w_FT_Neutral$p.value,
+    w_FT_Negative$p.value,
+    w_Cond_LF$p.value,
+    w_Cond_HF$p.value,
+    w_DiD$p.value
+  )
+) %>%
+  mutate(p = ifelse(p < .001, "<.001", sprintf("%.3f", p)))
 # Supplementary Table S5
+
+# Get all the simple effects
+emm_all <- emmeans(taste.lme, ~ Dx * cond * foodType)
+
+# Test 2-way interactions within each condition
+emm_by_cond <- emmeans(taste.lme, ~ Dx * foodType | cond)
+interaction_by_cond <- contrast(emm_by_cond, interaction = "pairwise", by = "cond")
+
+# Test 2-way interactions within each food-type
+emm_by_foodtype <- emmeans(taste.lme, ~ Dx * cond | foodType)
+interaction_by_foodtype <- contrast(emm_by_foodtype, interaction = "pairwise", by = "foodType")
+
+# Test 2-way interactions within each group
+emm_by_dx <- emmeans(taste.lme, ~ foodType * cond | Dx)
+interaction_by_dx <- contrast(emm_by_dx, interaction = "pairwise", by = "Dx")
+
+
+# Get the estimates to show the pattern
+means_table <- as.data.frame(emm_all) %>%
+  dplyr::select(Dx, cond, foodType, emmean, SE)
+
 
 ## Health
 health.df <- params %>%
@@ -674,90 +610,138 @@ health.df <- params %>%
           cond = factor(cond,levels=c("Neutral","Negative")),
           Dx = factor(Dx,levels=c("HC","BN"),labels=c("Healthy Controls",
                                                       "Bulimia Nervosa")))
-health.lm1 <- lmer (data=health.df,
-                    formula = vals ~ Dx * cond * foodType + (1|idx),
-                    REML=F,
-                    control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(health.lm1)
-# Supplementary Table S6
-
-emm_health_group <- emmeans(health.lm1, ~ Dx | cond)
-emm_health_group_cont = pairs(emm_health_group)  %>% as.data.frame() # Group differences for each condition
-emm_health_group_cont
-emm_taste_group_cont$p.value
-
-emm_health_cond <- emmeans(health.lm1, ~ cond | Dx)
-emm_health_cond_cont = pairs(emm_health_cond)
-emm_health_cond_cont
-
-# Food type differences for each group
-emm_health_group_food <- emmeans(health.lm1, ~ foodType | Dx)
-emm_health_group_food_cont = pairs(emm_health_group_food) %>% as.data.frame()
-emm_health_group_food_cont
-emm_health_group_food_cont$p.value
 
 # Revised covariance structure
-taste.lme <- lme(vals ~ Dx * cond * foodType,
-                random = ~ 1 | idx,
-                correlation = corSymm(form = ~ 1 | idx),  # Unstructured
-                weights = varIdent(form = ~ 1 | cond * foodType),  # Heterogeneous variances
-                data = taste.df,
-                method = "ML")
+
 health.lme <- lme(vals ~ Dx * cond * foodType,
                 random = ~ 1 | idx,
                 correlation = corSymm(form = ~ 1 | idx),  # Unstructured
                 weights = varIdent(form = ~ 1 | cond * foodType),  # Heterogeneous variances
                 data = health.df,
                 method = "ML")
-summary(taste.lme)
 summary(health.lme)
 
-# Get all the simple effects
-emm_all_taste <- emmeans(taste.lme, ~ Dx * cond * foodType)
-emm_all_health <- emmeans(health.lme, ~ Dx * cond * foodType)
+# Simplified Difference-in-Differences model for attribute timing (tHin)
+health.wide <- health.df %>%
+  pivot_wider(names_from = c(cond, foodType), values_from = vals) %>%
+  rename(
+    Neu_LF = `Neutral_Low-Fat`,
+    Neu_HF = `Neutral_High-Fat`,
+    Neg_LF = `Negative_Low-Fat`,
+    Neg_HF = `Negative_High-Fat`
+  ) %>%
+  mutate(
+    # Effect of food type in Neutral
+    FT_effect_Neutral = Neu_HF - Neu_LF,
+    # Effect of food type in Negative
+    FT_effect_Negative = Neg_HF - Neg_LF,
+    # Effect of condition in Low-Fat
+    Cond_effect_LF = Neg_LF - Neu_LF,
+    # Effect of condition in High-Fat
+    Cond_effect_HF = Neg_HF - Neu_HF,
+    # How food type effect changes with affect
+    diff_in_diff = FT_effect_Negative - FT_effect_Neutral
+  )
 
-# Test 2-way interactiion
+summary_stats_health = health.wide %>%
+  group_by(Dx) %>%
+  summarise(
+    FT_Neutral_mean = mean(FT_effect_Neutral),
+    FT_Neutral_sd   = sd(FT_effect_Neutral),
+    FT_Negative_mean = mean(FT_effect_Negative),
+    FT_Negative_sd   = sd(FT_effect_Negative),
+    Cond_LF_mean = mean(Cond_effect_LF),
+    Cond_LF_sd   = sd(Cond_effect_LF),
+    Cond_HF_mean = mean(Cond_effect_HF),
+    Cond_HF_sd   = sd(Cond_effect_HF),
+    DiD_mean = mean(diff_in_diff),
+    DiD_sd   = sd(diff_in_diff)
+  )
+
+# Run Wilcoxon tests
+w_FT_Neutral  <- wilcox.test(FT_effect_Neutral ~ Dx, data = health.wide)
+w_FT_Negative <- wilcox.test(FT_effect_Negative ~ Dx, data = health.wide)
+w_Cond_LF     <- wilcox.test(Cond_effect_LF ~ Dx, data = health.wide)
+w_Cond_HF     <- wilcox.test(Cond_effect_HF ~ Dx, data = health.wide)
+w_DiD         <- wilcox.test(diff_in_diff ~ Dx, data = health.wide)
+
+# One-sample tests: is the food-type effect different from zero within each group and condition
+w_FT_Neutral_HC  <- wilcox.test(health.wide$FT_effect_Neutral[health.wide$Dx == "Healthy Controls"], mu = 0)
+w_FT_Neutral_BN  <- wilcox.test(health.wide$FT_effect_Neutral[health.wide$Dx == "Bulimia Nervosa"], mu = 0)
+w_FT_Negative_HC <- wilcox.test(health.wide$FT_effect_Negative[health.wide$Dx == "Healthy Controls"], mu = 0)
+w_FT_Negative_BN <- wilcox.test(health.wide$FT_effect_Negative[health.wide$Dx == "Bulimia Nervosa"], mu = 0)
+
+# One-sample tests: is the condition effect different from zero within each group
+w_Cond_LF_HC <- wilcox.test(health.wide$Cond_effect_LF[health.wide$Dx == "Healthy Controls"], mu = 0)
+w_Cond_LF_BN <- wilcox.test(health.wide$Cond_effect_LF[health.wide$Dx == "Bulimia Nervosa"], mu = 0)
+w_Cond_HF_HC <- wilcox.test(health.wide$Cond_effect_HF[health.wide$Dx == "Healthy Controls"], mu = 0)
+w_Cond_HF_BN <- wilcox.test(health.wide$Cond_effect_HF[health.wide$Dx == "Bulimia Nervosa"], mu = 0)
+
+# Build table dataframe
+hc_health <- summary_stats_health %>% filter(Dx == "Healthy Controls")
+bn_health <- summary_stats_health %>% filter(Dx == "Bulimia Nervosa")
+
+health_table_df <- tibble(
+  Contrast = c(
+    "Food-type effect in Neutral condition",
+    "Food-type effect in Negative condition",
+    "Condition effect for Low-Fat foods",
+    "Condition effect for High-Fat foods",
+    "Difference-in-differences"
+  ),
+  Section = c(
+    "Group difference in food-type bias within condition",
+    "Group difference in food-type bias within condition",
+    "Group difference in condition effect within food type",
+    "Group difference in condition effect within food type",
+    "Overall"
+  ),
+  HC = c(
+    fmt(hc_health$FT_Neutral_mean,  hc_health$FT_Neutral_sd),
+    fmt(hc_health$FT_Negative_mean, hc_health$FT_Negative_sd),
+    fmt(hc_health$Cond_LF_mean,     hc_health$Cond_LF_sd),
+    fmt(hc_health$Cond_HF_mean,     hc_health$Cond_HF_sd),
+    fmt(hc_health$DiD_mean,         hc_health$DiD_sd)
+  ),
+  BN = c(
+    fmt(bn_health$FT_Neutral_mean,  bn_health$FT_Neutral_sd),
+    fmt(bn_health$FT_Negative_mean, bn_health$FT_Negative_sd),
+    fmt(bn_health$Cond_LF_mean,     bn_health$Cond_LF_sd),
+    fmt(bn_health$Cond_HF_mean,     bn_health$Cond_HF_sd),
+    fmt(bn_health$DiD_mean,         bn_health$DiD_sd)
+  ),
+  W = c(
+    w_FT_Neutral$statistic,
+    w_FT_Negative$statistic,
+    w_Cond_LF$statistic,
+    w_Cond_HF$statistic,
+    w_DiD$statistic
+  ),
+  p = c(
+    w_FT_Neutral$p.value,
+    w_FT_Negative$p.value,
+    w_Cond_LF$p.value,
+    w_Cond_HF$p.value,
+    w_DiD$p.value
+  )
+) %>%
+  mutate(p = ifelse(p < .001, "<.001", sprintf("%.3f", p)))
+# Supplementary Table S7
+
+# Get all the simple effects
+emm_all <- emmeans(health.lme, ~ Dx * cond * foodType)
 
 # Test 2-way interactions within each condition
-emm_by_cond_taste <- emmeans(taste.lme, ~ Dx * foodType | cond)
-emm_by_cond_health <- emmeans(health.lme, ~ Dx * foodType | cond)
+emm_by_cond <- emmeans(health.lme, ~ Dx * foodType | cond)
+interaction_by_cond <- contrast(emm_by_cond, interaction = "pairwise", by = "cond")
 
-interaction_by_cond_taste <- contrast(emm_by_cond_taste, interaction = "pairwise", by = "cond")
-interaction_by_cond_health <- contrast(emm_by_cond_health, interaction = "pairwise", by = "cond")
+# Test 2-way interactions within each food-type
+emm_by_foodtype <- emmeans(health.lme, ~ Dx * cond | foodType)
+interaction_by_foodtype <- contrast(emm_by_foodtype, interaction = "pairwise", by = "foodType")
 
-# Simple effects within each condition
-# Food type effect within each Dx group, by condition
-foodtype_by_dx_cond_taste <- emmeans(taste.lme, pairwise ~ foodType | Dx * cond)
-foodtype_by_dx_cond_taste_df = foodtype_by_dx_cond_taste$contrasts %>% as.data.frame() 
-foodtype_by_dx_cond_taste_df$estimate
-foodtype_by_dx_cond_taste_df$p.value
-
-foodtype_by_dx_cond_health <- emmeans(health.lme, pairwise ~ foodType | Dx * cond)
-foodtype_by_dx_cond_health_df = foodtype_by_dx_cond_health$contrasts %>% as.data.frame() 
-foodtype_by_dx_cond_health_df$estimate
-foodtype_by_dx_cond_health_df$p.value
-
-# Group differences within each food type and condition
-dx_by_foodtype_cond_taste <- emmeans(taste.lme, pairwise ~ Dx | foodType * cond) 
-dx_by_foodtype_cond_taste_df = dx_by_foodtype_cond_taste$contrasts %>% as.data.frame() 
-dx_by_foodtype_cond_taste_df$estimate
-dx_by_foodtype_cond_taste_df$p.value
-
-dx_by_foodtype_cond_health <- emmeans(health.lme, pairwise ~ Dx | foodType * cond) 
-dx_by_foodtype_cond_health_df = dx_by_foodtype_cond_health$contrasts %>% as.data.frame() 
-dx_by_foodtype_cond_health_df$estimate
-dx_by_foodtype_cond_health_df$p.value
-
-# Condition difference within each group for each food
-cond_by_dx_foodtype_taste <- emmeans(taste.lme, pairwise ~ cond | foodType * Dx)
-
-
-# Get the estimates to show the pattern
-means_table_taste <- as.data.frame(emm_all_taste) %>%
-  dplyr::select(Dx, cond, foodType, emmean, SE)
-
-means_table_health <- as.data.frame(emm_all_health) %>%
-  dplyr::select(Dx, cond, foodType, emmean, SE)
+# Test 2-way interactions within each group
+emm_by_dx <- emmeans(health.lme, ~ foodType * cond | Dx)
+interaction_by_dx <- contrast(emm_by_dx, interaction = "pairwise", by = "Dx")
 
 # Supplementary Table S7
 
@@ -1091,45 +1075,109 @@ summary(obe.m.full)
 
 ############################
 # Supplementary Parameters #
-
+############################
 # Non-decision time
+
 ndt.df <- params %>%
   filter(params == "nDT") %>%
   mutate( cond = factor(cond,levels=c("Neutral","Negative")),
           Dx = factor(Dx,levels=c("HC","BN"),labels=c("Healthy Controls",
                                                       "Bulimia Nervosa")))
-ndt.lm <- lmer (data=ndt.df,
-                    formula = vals ~ Dx * cond  + (1|idx),
-                    REML=F,
-                    control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(ndt.lm) # Table S23
+ndt.lme <- lme(vals ~ Dx * cond,
+                random = ~ 1 | idx,
+                correlation = corSymm(form = ~ 1 | idx), 
+                weights = varIdent(form = ~ 1 | cond ),
+                data = ndt.df,
+                method = "ML")
+summary(ndt.lme) # Table S23
+
+ndt.wide <- ndt.df %>%
+  pivot_wider(names_from = cond, values_from = vals) %>%
+  rename(
+    Neu = Neutral,
+    Neg = Negative
+  ) %>%
+  mutate(
+    Cond_effect = Neg - Neu
+  )
+
+summary_stats_ndt <- ndt.wide %>%
+  group_by(Dx) %>%
+  summarise(
+    Neu_mean     = mean(Neu),
+    Neu_sd       = sd(Neu),
+    Neg_mean     = mean(Neg),
+    Neg_sd       = sd(Neg),
+    Cond_mean    = mean(Cond_effect),
+    Cond_sd      = sd(Cond_effect)
+  )
+
+# Two-sample test: group difference in condition effect
+w_Cond <- wilcox.test(Cond_effect ~ Dx, data = ndt.wide)
+
+# One-sample tests: is condition effect different from zero within each group
+w_Cond_HC <- wilcox.test(ndt.wide$Cond_effect[ndt.wide$Dx == "Healthy Controls"], mu = 0)
+w_Cond_BN <- wilcox.test(ndt.wide$Cond_effect[ndt.wide$Dx == "Bulimia Nervosa"], mu = 0)
 
 bound.df <- params %>%
   filter(params == "boundary") %>%
   mutate( cond = factor(cond,levels=c("Neutral","Negative")),
           Dx = factor(Dx,levels=c("HC","BN"),labels=c("Healthy Controls",
                                                       "Bulimia Nervosa")))
-bound.lm <- lmer (data=bound.df,
-                    formula = vals ~ Dx * cond  + (1|idx),
-                    REML=F,
-                    control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(bound.lm) # Table 24
+bound.lme <- lme(vals ~ Dx * cond,
+                random = ~ 1 | idx,
+                correlation = corSymm(form = ~ 1 | idx), 
+                weights = varIdent(form = ~ 1 | cond ),
+                data = bound.df,
+                method = "ML")
+summary(bound.lme) # Table 24
 
-emm_bound <- emmeans(bound.lm, ~ cond | Dx)
+bound.wide <- bound.df %>%
+  pivot_wider(names_from = cond, values_from = vals) %>%
+  rename(
+    Neu = Neutral,
+    Neg = Negative
+  ) %>%
+  mutate(
+    Cond_effect = Neg - Neu
+  )
+
+summary_stats_bound <- bound.wide %>%
+  group_by(Dx) %>%
+  summarise(
+    Neu_mean     = mean(Neu),
+    Neu_sd       = sd(Neu),
+    Neg_mean     = mean(Neg),
+    Neg_sd       = sd(Neg),
+    Cond_mean    = mean(Cond_effect),
+    Cond_sd      = sd(Cond_effect)
+  )
+
+# Two-sample test: group difference in condition effect
+w_Cond <- wilcox.test(Cond_effect ~ Dx, data = bound.wide)
+
+# One-sample tests: is condition effect different from zero within each group
+w_Cond_HC <- wilcox.test(bound.wide$Cond_effect[bound.wide$Dx == "Healthy Controls"], mu = 0)
+w_Cond_BN <- wilcox.test(bound.wide$Cond_effect[bound.wide$Dx == "Bulimia Nervosa"], mu = 0)
+
+
+emm_bound <- emmeans(bound.lme, ~ cond | Dx)
 
 emm_bound_cont = pairs(emm_bound)  %>% as.data.frame() # Group differences for each condition
-emm_bound_cont # Table 25
+emm_bound_cont
 
 bias.df <- params %>%
   filter(params == "bias") %>%
   mutate( cond = factor(cond,levels=c("Neutral","Negative")),
           Dx = factor(Dx,levels=c("HC","BN"),labels=c("Healthy Controls",
                                                       "Bulimia Nervosa")))
-bias.lm <- lmer (data=bias.df,
-                    formula = vals ~ Dx * cond  + (1|idx),
-                    REML=F,
-                    control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
-summary(bias.lm) # Table 26
+bias.lme <- lme(vals ~ Dx * cond,
+                random = ~ 1 | idx,
+                correlation = corSymm(form = ~ 1 | idx), 
+                weights = varIdent(form = ~ 1 | cond ),
+                data = bias.df,
+                method = "ML")
+summary(bias.lme) # Table 25
 
 
 #########################
