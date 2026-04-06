@@ -298,6 +298,34 @@ tHin.df <- params %>%
 tHin.df %>%
   group_by(foodType, cond, Dx) %>%
   summarise(m = mean(vals), s = se(vals))
+
+
+# Testing Reviewer comment about covariance structure
+m_cs  <- lme(vals ~ Dx * cond * foodType,
+             random = ~ 1 | idx,
+             correlation = corCompSymm(form = ~ 1 | idx),
+             weights = varIdent(form = ~ 1 | cond * foodType),
+             data = tHin.df, method = "ML")
+
+m_un  <- lme(vals ~ Dx * cond * foodType,
+             random = ~ 1 | idx,
+             correlation = corSymm(form = ~ 1 | idx),
+             weights = varIdent(form = ~ 1 | cond * foodType),
+             data = tHin.df, method = "ML")
+
+m_block <- lme(vals ~ Dx * cond * foodType,
+  random = ~ 1 | idx/cond,  # condition nested in subject
+  weights = varIdent(form = ~ 1 | cond * foodType),
+  data = tHin.df, method = "ML")
+  ### Doesn't converge!
+
+anova(m_cs, m_un)  # LRT: is the unstructured improvement worth the 5 extra params?
+## AIC is close; BIC favors structured; LRT is borderline (0.057) favoring unstructured
+
+# Inspect correlation structure of unstructured model
+corMatrix(m_un$modelStruct$corStruct)[[1]]
+
+
 # Updated model with better covariance structure
 tHin.lme <- lme(vals ~ Dx * cond * foodType,
                 random = ~ 1 | idx,
@@ -408,6 +436,9 @@ tHin_table_df <- tibble(
 
 # Get all the simple effects
 emm_all <- emmeans(tHin.lme, ~ Dx * cond * foodType)
+
+emm_by_dx_cond <- emmeans(tHin.lme, ~  foodType | cond * Dx)
+contrast(emm_by_dx_cond, interaction = "pairwise", by = c("cond","Dx"))
 
 # Test 2-way interactions within each condition
 emm_by_cond <- emmeans(tHin.lme, ~ Dx * foodType | cond)
@@ -581,25 +612,20 @@ taste_table_df <- tibble(
 # Supplementary Table S5
 
 # Get all the simple effects
-emm_all <- emmeans(taste.lme, ~ Dx * cond * foodType)
+emm_Dx_cond <- emmeans(taste.lme, ~ Dx | cond)
+contrast(emm_Dx_cond, interaction = "pairwise")
+emm_ft_Dx <- emmeans(taste.lme, ~ foodType | Dx)
+contrast(emm_ft_Dx, interaction = "pairwise")
+emm_cond_Dx <- emmeans(taste.lme, ~ cond | Dx)
+contrast(emm_cond_Dx, interaction = "pairwise")
 
-# Test 2-way interactions within each condition
-emm_by_cond <- emmeans(taste.lme, ~ Dx * foodType | cond)
-interaction_by_cond <- contrast(emm_by_cond, interaction = "pairwise", by = "cond")
+# All group differences
+emm_all_Dx <- emmeans(taste.lme, ~ Dx | cond * foodType)
+contrast(emm_all_Dx, interaction = "pairwise")
 
-# Test 2-way interactions within each food-type
-emm_by_foodtype <- emmeans(taste.lme, ~ Dx * cond | foodType)
-interaction_by_foodtype <- contrast(emm_by_foodtype, interaction = "pairwise", by = "foodType")
-
-# Test 2-way interactions within each group
-emm_by_dx <- emmeans(taste.lme, ~ foodType * cond | Dx)
-interaction_by_dx <- contrast(emm_by_dx, interaction = "pairwise", by = "Dx")
-
-
-# Get the estimates to show the pattern
-means_table <- as.data.frame(emm_all) %>%
-  dplyr::select(Dx, cond, foodType, emmean, SE)
-
+# Test interaction
+emm_interact <- emmeans(taste.lme, ~ Dx * cond)
+contrast(emm_interact, interaction = "pairwise")
 
 ## Health
 health.df <- params %>%
@@ -732,16 +758,12 @@ health_table_df <- tibble(
 emm_all <- emmeans(health.lme, ~ Dx * cond * foodType)
 
 # Test 2-way interactions within each condition
-emm_by_cond <- emmeans(health.lme, ~ Dx * foodType | cond)
-interaction_by_cond <- contrast(emm_by_cond, interaction = "pairwise", by = "cond")
-
-# Test 2-way interactions within each food-type
-emm_by_foodtype <- emmeans(health.lme, ~ Dx * cond | foodType)
-interaction_by_foodtype <- contrast(emm_by_foodtype, interaction = "pairwise", by = "foodType")
-
-# Test 2-way interactions within each group
-emm_by_dx <- emmeans(health.lme, ~ foodType * cond | Dx)
-interaction_by_dx <- contrast(emm_by_dx, interaction = "pairwise", by = "Dx")
+emm_by_cond <- emmeans(health.lme, ~ Dx | cond)
+contrast(emm_by_cond, interaction = "pairwise", by = "cond")
+emm_by_foodtype <- emmeans(health.lme, ~ cond | Dx)
+contrast(emm_by_foodtype, interaction = "pairwise", by = "Dx")
+emm_by_dx <- emmeans(health.lme, ~ foodType  | Dx)
+contrast(emm_by_dx, interaction = "pairwise", by = "Dx")
 
 # Supplementary Table S7
 
