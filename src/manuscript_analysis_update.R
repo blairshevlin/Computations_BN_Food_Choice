@@ -31,6 +31,7 @@
 # 11/13/25      Blair Shevlin                         Correlations between restriction and binge frequency 
 # 01/26/26      Blair Shevlin                         Difference-in-differences analysis for attribute timing
 # 03/05/26      Blair Shevlin                         Re-analysis of model parameters with better covariance structure
+# 08/24/26      Blair Shevlin                         Adding error bars to Supplmentary Figure 1
 
 # Packages required
 required_packages <- c(
@@ -1308,6 +1309,9 @@ POMS %>%
     theme_pubr(base_size = 44) +
     facet_wrap(~item, scales = "free") +
     stat_summary(geom="col",stat= "identity",
+      position = position_dodge2(width = .5)) +
+    stat_summary(geom="errorbar",stat= "identity", 
+      color = "black", alpha = 1,
       position = position_dodge2(width = .5)) +
     scale_color_brewer(type = "qual") +
     scale_fill_brewer(type = "qual") +
