@@ -4,8 +4,10 @@
 /src/Untiled-2.r
 /src/Untiled-3.r
 /src/manuscript_analysis.R
-/results/stDDM/estimation/*
-/results/stDDM/recovery/*
+/results/stDDM/*
 .Rproj.user
 Computations_BN_Food_Choice.Rproj
 .Rhistory
+*.RData
+.Rhistory
+tmp*.tiff
